@@ -16,19 +16,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
-      - name: Setup Flutter
-        uses: flutter-actions/setup@v2
+      - name: Setup Flutter SDK
+        uses: flutter-actions/setup-flutter@v4
         with:
-          flutter-version: '3.24.0'
-          channel: 'stable'
-      
-      - name: Cache dependencies
-        uses: actions/cache@v3
-        with:
-          path: ~/.pub-cache
-          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pub-
+          channel: stable
+          version: '3.24.0'
       
       - name: Get dependencies
         run: flutter pub get
