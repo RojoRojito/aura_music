@@ -59,7 +59,7 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                        colors: [Colors.transparent, AuraColors.background.withOpacity(0.8)]))),
+                        colors: [Colors.transparent, AuraColors.background.withOpacity(0.8)])))),
               ]),
             ),
           ),
