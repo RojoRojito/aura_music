@@ -40,8 +40,8 @@ class MediaScanner {
   }
 
   Future<List<AlbumModel>> albumsByArtist(int artistId) async {
-    final r = await _q.queryAlbumsFrom(AudiosFromType.ARTIST_ID, artistId);
-    return r;
+    final r = await _q.queryAlbums();
+    return r.where((a) => a.artistId == artistId).toList();
   }
 
   Future<List<Song>> songsByAlbum(int albumId) async {

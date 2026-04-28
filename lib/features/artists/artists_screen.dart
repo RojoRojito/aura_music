@@ -3,6 +3,8 @@ import 'package:on_audio_query/on_audio_query.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../services/media_scanner.dart';
+import '../../data/models/song.dart';
+import '../../data/models/artist.dart';
 import '../player/player_controller.dart';
 import '../../widgets/song_tile.dart';
 
@@ -169,7 +171,6 @@ class _ArtistDetailScreenState extends State<_ArtistDetailScreen> {
                       enableActions: true,
                     ),
                     childCount: _songs.length)),
-                ),
         ],
       ),
       floatingActionButton: _songs.isNotEmpty

@@ -138,4 +138,3 @@ class _SongTile extends StatelessWidget {
     );
   }
 }
-}

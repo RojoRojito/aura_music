@@ -95,7 +95,6 @@ child: const Icon(Icons.add)),
       ),
     );
   }
-}
 
   void _showCreate(BuildContext ctx) {
     final ctrl = TextEditingController();

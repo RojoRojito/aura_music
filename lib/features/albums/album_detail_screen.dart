@@ -99,7 +99,6 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
                       showAlbumArt: false,
                     ),
                     childCount: _songs.length)),
-                ),
         ],
       ),
       floatingActionButton: _songs.isNotEmpty

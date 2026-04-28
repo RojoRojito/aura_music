@@ -21,7 +21,7 @@ class DynamicThemeService {
 
   Future<void> updateFromAlbumArt(int albumId) async {
     try {
-      final art = await QueryArtworkPlugin().queryArtwork(
+      final art = await OnAudioQuery().queryArtwork(
         albumId,
         ArtworkType.ALBUM,
         format: ArtworkFormat.JPEG,

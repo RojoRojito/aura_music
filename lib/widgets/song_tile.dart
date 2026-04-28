@@ -4,7 +4,7 @@ import 'package:on_audio_query/on_audio_query.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/models/song.dart';
-import '../player/player_controller.dart';
+import '../features/player/player_controller.dart';
 import 'add_to_playlist_sheet.dart';
 
 class SongTile extends StatelessWidget {
