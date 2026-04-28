@@ -28,14 +28,29 @@ jobs:
           flutter-version: '3.24.0'
           channel: 'stable'
 
-      - name: Regenerate Android files
+      - name: Regenerate Android files & Update Kotlin
         run: |
-          if [ ! -f android/app/src/main/AndroidManifest.xml ]; then
-            flutter create . --platforms android
-          else
+          # Respaldar Manifest si existe
+          if [ -f android/app/src/main/AndroidManifest.xml ]; then
             cp android/app/src/main/AndroidManifest.xml AndroidManifest.xml.bak
-            flutter create . --platforms android
+          fi
+          
+          # Regenerar estructura
+          flutter create . --platforms android
+          
+          # Restaurar Manifest si teníamos respaldo
+          if [ -f AndroidManifest.xml.bak ]; then
             cp AndroidManifest.xml.bak android/app/src/main/AndroidManifest.xml
+          fi
+
+          # ACTUALIZAR KOTLIN:
+          # Intentar actualizar en settings.gradle (estilo nuevo)
+          if [ -f android/settings.gradle ]; then
+            sed -i 's/id "org.jetbrains.kotlin.android" version "[^"]*"/id "org.jetbrains.kotlin.android" version "1.9.22"/' android/settings.gradle
+          fi
+          # Intentar actualizar en build.gradle (estilo antiguo)
+          if [ -f android/build.gradle ]; then
+            sed -i "s/ext.kotlin_version = '[^']*'/ext.kotlin_version = '1.9.22'/" android/build.gradle
           fi
 
       - name: Accept Android Licenses
@@ -45,7 +60,7 @@ jobs:
         run: flutter pub get
       
       - name: Build APK
-        run: flutter build apk --release --verbose
+        run: flutter build apk --release
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g"
         
