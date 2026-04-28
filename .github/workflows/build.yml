@@ -2,43 +2,48 @@ name: Build Android APK
 
 on:
   push:
-    branches: [ main ]
+    branches: [ master ]
   pull_request:
-    branches: [ main ]
-  workflow_dispatch:
+    branches: [ master ]
+  workflow_dispatch: # Permite ejecutar el build manualmente
 
 jobs:
   build:
-    name: Build APK
+    name: Build & Release APK
     runs-on: ubuntu-latest
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
       
-      - name: Setup Flutter SDK
-        uses: flutter-actions/setup-flutter@v4
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
         with:
-          channel: stable
-          version: '3.24.0'
-      
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Setup Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: 'stable'
+          cache: true
+
       - name: Get dependencies
         run: flutter pub get
       
       - name: Run Flutter analyzer
         run: flutter analyze --no-fatal-infos
       
-      - name: Build debug APK
-        run: flutter build apk --debug
-      
-      - name: Build release APK
+      - name: Build APK
+        # --split-per-abi genera APKs más pequeños por arquitectura
+        # --release es para producción
         run: flutter build apk --release
         
-      - name: Upload APKs
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: aura-music-apk
-          path: |
-            build/app/outputs/flutter-apk/app-debug.apk
-            build/app/outputs/flutter-apk/app-release.apk
-          retention-days: 30
+          name: aura-music-release
+          path: build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 7
