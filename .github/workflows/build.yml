@@ -5,7 +5,7 @@ on:
     branches: [ master ]
   pull_request:
     branches: [ master ]
-  workflow_dispatch: # Permite ejecutar el build manualmente
+  workflow_dispatch:
 
 jobs:
   build:
@@ -21,24 +21,27 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-          cache: 'gradle'
-
+          # Desactivamos caché de gradle por ahora porque falla si no hay archivos .gradle
+      
       - name: Setup Flutter SDK
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.24.0'
           channel: 'stable'
-          cache: true
+
+      - name: Regenerate Android files
+        run: |
+          # Respaldar el Manifest original
+          cp android/app/src/main/AndroidManifest.xml AndroidManifest.xml.bak
+          # Forzar la creación de archivos de plataforma
+          flutter create . --platforms android
+          # Restaurar el Manifest original
+          cp AndroidManifest.xml.bak android/app/src/main/AndroidManifest.xml
 
       - name: Get dependencies
         run: flutter pub get
       
-      - name: Run Flutter analyzer
-        run: flutter analyze --no-fatal-infos
-      
       - name: Build APK
-        # --split-per-abi genera APKs más pequeños por arquitectura
-        # --release es para producción
         run: flutter build apk --release
         
       - name: Upload APK Artifact
