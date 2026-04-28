@@ -21,7 +21,6 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-          # Desactivamos caché de gradle por ahora porque falla si no hay archivos .gradle
       
       - name: Setup Flutter SDK
         uses: subosito/flutter-action@v2
@@ -31,18 +30,24 @@ jobs:
 
       - name: Regenerate Android files
         run: |
-          # Respaldar el Manifest original
-          cp android/app/src/main/AndroidManifest.xml AndroidManifest.xml.bak
-          # Forzar la creación de archivos de plataforma
-          flutter create . --platforms android
-          # Restaurar el Manifest original
-          cp AndroidManifest.xml.bak android/app/src/main/AndroidManifest.xml
+          if [ ! -f android/app/src/main/AndroidManifest.xml ]; then
+            flutter create . --platforms android
+          else
+            cp android/app/src/main/AndroidManifest.xml AndroidManifest.xml.bak
+            flutter create . --platforms android
+            cp AndroidManifest.xml.bak android/app/src/main/AndroidManifest.xml
+          fi
+
+      - name: Accept Android Licenses
+        run: yes | flutter doctor --android-licenses
 
       - name: Get dependencies
         run: flutter pub get
       
       - name: Build APK
-        run: flutter build apk --release
+        run: flutter build apk --release --verbose
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g"
         
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
