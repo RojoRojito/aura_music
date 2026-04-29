@@ -211,7 +211,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
             _infoRow('Artista', s.artist),
             _infoRow('Álbum', s.album),
             _infoRow('Duración', s.durationFormatted),
-            if (s.year != null) _infoRow('Año', '\${s.year}'),
+            if (s.year != null) _infoRow('Año', '${s.year}'),
             if (s.genre != null) _infoRow('Género', s.genre!),
           ]),
       actions: [TextButton(onPressed: () => Navigator.pop(ctx),
@@ -222,7 +222,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Widget _infoRow(String label, String val) => Padding(
     padding: const EdgeInsets.symmetric(vertical: 4),
     child: Row(children: [
-      Text('\$label: ', style: const TextStyle(color: AuraColors.textMuted, fontSize: 13)),
+      Text('$label: ', style: const TextStyle(color: AuraColors.textMuted, fontSize: 13)),
       Expanded(child: Text(val, style: const TextStyle(color: AuraColors.text, fontSize: 13))),
     ]));
 
@@ -246,7 +246,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
               return ListTile(
                 leading: cur
                   ? const Icon(Icons.equalizer, color: AuraColors.primary)
-                  : Text('\${i+1}', style: const TextStyle(color: AuraColors.textMuted)),
+                  : Text('${i+1}', style: const TextStyle(color: AuraColors.textMuted)),
                 title: Text(s.title, style: TextStyle(
                     color: cur ? AuraColors.primary : AuraColors.text,
                     fontWeight: cur ? FontWeight.bold : FontWeight.normal,
@@ -260,7 +260,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   String _fmt(Duration d) {
     final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
     final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
-    return '\$m:\$s';
+    return '$m:$s';
   }
 }
 

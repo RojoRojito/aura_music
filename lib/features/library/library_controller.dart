@@ -22,7 +22,7 @@ class LibraryController extends ChangeNotifier {
       _all = await _scanner.scanSongs();
       _filter();
     } catch (e) {
-      error = 'Error: \$e';
+      error = 'Error: $e';
     } finally {
       isLoading = false; notifyListeners();
     }

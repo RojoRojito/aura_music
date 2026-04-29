@@ -31,7 +31,7 @@ class Song {
     final d = Duration(milliseconds: duration);
     final min = d.inMinutes.remainder(60).toString().padLeft(2, '0');
     final sec = d.inSeconds.remainder(60).toString().padLeft(2, '0');
-    return '\$min:\$sec';
+    return '$min:$sec';
   }
 
   @override

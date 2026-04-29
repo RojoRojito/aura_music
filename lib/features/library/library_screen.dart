@@ -69,7 +69,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
                   child: Row(children: [
-                    Text('\${ctrl.songs.length} canciones',
+                    Text('${ctrl.songs.length} canciones',
                         style: TextStyle(color: AuraColors.textMuted, fontSize: 13))])),
                 Expanded(
                   child: ListView.builder(
