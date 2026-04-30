@@ -7,17 +7,23 @@ import 'features/artists/artists_screen.dart';
 import 'features/playlists/playlists_screen.dart';
 import 'features/settings/settings_screen.dart';
 import 'features/player/player_controller.dart';
+import 'features/settings/settings_controller.dart';
 import 'widgets/mini_player.dart';
 
 class AuraApp extends StatelessWidget {
   const AuraApp({super.key});
   @override
-  Widget build(BuildContext context) => MaterialApp(
-    title: 'AURA Music',
-    debugShowCheckedModeBanner: false,
-    theme: AuraTheme.dark(),
-    home: const _Shell(),
-  );
+  Widget build(BuildContext context) {
+    final settings = context.watch<SettingsController>();
+    return MaterialApp(
+      title: 'AURA Music',
+      debugShowCheckedModeBanner: false,
+      theme: AuraTheme.light(),
+      darkTheme: AuraTheme.dark(),
+      themeMode: settings.themeMode,
+      home: const _Shell(),
+    );
+  }
 }
 
 class _Shell extends StatefulWidget {
@@ -34,8 +40,16 @@ class _ShellState extends State<_Shell> {
   @override
   Widget build(BuildContext context) {
     final ctrl = context.watch<PlayerController>();
+    final settings = context.watch<SettingsController>();
+    final bgColor = settings.themeMode == ThemeMode.light
+        ? AuraColors.lightBackground
+        : AuraColors.background;
+    final navColor = settings.themeMode == ThemeMode.light
+        ? AuraColors.lightSurface
+        : AuraColors.surface;
+
     return Scaffold(
-      backgroundColor: AuraColors.background,
+      backgroundColor: bgColor,
       body: Stack(children: [
         IndexedStack(index: _idx, children: _screens),
         if (ctrl.currentSong != null)
@@ -44,7 +58,7 @@ class _ShellState extends State<_Shell> {
             child: const MiniPlayer()),
       ]),
       bottomNavigationBar: NavigationBar(
-        backgroundColor: AuraColors.surface,
+        backgroundColor: navColor,
         selectedIndex: _idx,
         onDestinationSelected: (i) => setState(() => _idx = i),
         destinations: const [

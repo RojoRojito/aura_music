@@ -6,16 +6,19 @@ class SettingsController extends ChangeNotifier {
   static const String _keySleepTimer = 'sleep_timer_minutes';
   static const String _keyPlaybackSpeed = 'playback_speed';
   static const String _keyDynamicTheme = 'dynamic_theme';
+  static const String _keyThemeMode = 'theme_mode';
 
   SharedPreferences? _prefs;
 
   int _sleepTimerMinutes = 0;
   double _playbackSpeed = 1.0;
   bool _dynamicThemeEnabled = true;
+  ThemeMode _themeMode = ThemeMode.dark;
 
   int get sleepTimerMinutes => _sleepTimerMinutes;
   double get playbackSpeed => _playbackSpeed;
   bool get dynamicThemeEnabled => _dynamicThemeEnabled;
+  ThemeMode get themeMode => _themeMode;
 
   DateTime? _sleepTimerEnd;
   Timer? _sleepTimerCountdown;
@@ -40,6 +43,8 @@ class SettingsController extends ChangeNotifier {
     _sleepTimerMinutes = _prefs?.getInt(_keySleepTimer) ?? 0;
     _playbackSpeed = _prefs?.getDouble(_keyPlaybackSpeed) ?? 1.0;
     _dynamicThemeEnabled = _prefs?.getBool(_keyDynamicTheme) ?? true;
+    final themeModeIndex = _prefs?.getInt(_keyThemeMode) ?? 0;
+    _themeMode = ThemeMode.values[themeModeIndex.clamp(0, ThemeMode.values.length - 1)];
     notifyListeners();
   }
 
@@ -70,6 +75,12 @@ class SettingsController extends ChangeNotifier {
   Future<void> setDynamicTheme(bool enabled) async {
     _dynamicThemeEnabled = enabled;
     await _prefs?.setBool(_keyDynamicTheme, enabled);
+    notifyListeners();
+  }
+
+  Future<void> setThemeMode(ThemeMode mode) async {
+    _themeMode = mode;
+    await _prefs?.setInt(_keyThemeMode, mode.index);
     notifyListeners();
   }
 
