@@ -2,6 +2,16 @@ import 'package:on_audio_query/on_audio_query.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../data/models/song.dart';
 
+enum ScanStatus { idle, loading, success, noPermission, error }
+
+class ScanResult {
+  final List<Song> songs;
+  final ScanStatus status;
+  final String? errorMessage;
+
+  const ScanResult({required this.songs, required this.status, this.errorMessage});
+}
+
 class MediaScanner {
   final OnAudioQuery _q = OnAudioQuery();
 
@@ -11,18 +21,25 @@ class MediaScanner {
     return s.isGranted;
   }
 
-  Future<List<Song>> scanSongs() async {
-    if (!await requestPermission()) return [];
-    final songs = await _q.querySongs(
-      sortType: SongSortType.TITLE,
-      orderType: OrderType.ASC_OR_SMALLER,
-      uriType: UriType.EXTERNAL,
-      ignoreCase: true,
-    );
-    return songs
-        .where((s) => (s.duration ?? 0) > 30000)
-        .map(_map)
-        .toList();
+  Future<ScanResult> scanSongs() async {
+    if (!await requestPermission()) {
+      return const ScanResult(songs: [], status: ScanStatus.noPermission);
+    }
+    try {
+      final songs = await _q.querySongs(
+        sortType: SongSortType.TITLE,
+        orderType: OrderType.ASC_OR_SMALLER,
+        uriType: UriType.EXTERNAL,
+        ignoreCase: true,
+      );
+      final filtered = songs
+          .where((s) => (s.duration ?? 0) > 30000)
+          .map(_map)
+          .toList();
+      return ScanResult(songs: filtered, status: ScanStatus.success);
+    } catch (e) {
+      return ScanResult(songs: [], status: ScanStatus.error, errorMessage: e.toString());
+    }
   }
 
   Future<List<AlbumModel>> scanAlbums() =>

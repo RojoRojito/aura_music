@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -17,7 +18,10 @@ class SettingsController extends ChangeNotifier {
   bool get dynamicThemeEnabled => _dynamicThemeEnabled;
 
   DateTime? _sleepTimerEnd;
+  Timer? _sleepTimerCountdown;
+  final _sleepTimerController = StreamController<void>.broadcast();
 
+  Stream<void> get onSleepTimerExpired => _sleepTimerController.stream;
   DateTime? get sleepTimerEnd => _sleepTimerEnd;
 
   bool get isSleepTimerActive => _sleepTimerEnd != null && _sleepTimerEnd!.isAfter(DateTime.now());
@@ -41,8 +45,15 @@ class SettingsController extends ChangeNotifier {
 
   Future<void> setSleepTimer(int minutes) async {
     _sleepTimerMinutes = minutes;
+    _sleepTimerCountdown?.cancel();
     if (minutes > 0) {
       _sleepTimerEnd = DateTime.now().add(Duration(minutes: minutes));
+      _sleepTimerCountdown = Timer(Duration(minutes: minutes), () {
+        _sleepTimerEnd = null;
+        _sleepTimerMinutes = 0;
+        _sleepTimerController.add(null);
+        notifyListeners();
+      });
     } else {
       _sleepTimerEnd = null;
     }
@@ -62,11 +73,17 @@ class SettingsController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void checkSleepTimer() {
-    if (isSleepTimerActive) {
-      _sleepTimerEnd = null;
-      _sleepTimerMinutes = 0;
-      notifyListeners();
-    }
+  void cancelSleepTimer() {
+    _sleepTimerCountdown?.cancel();
+    _sleepTimerEnd = null;
+    _sleepTimerMinutes = 0;
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _sleepTimerCountdown?.cancel();
+    _sleepTimerController.close();
+    super.dispose();
   }
 }

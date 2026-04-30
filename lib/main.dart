@@ -22,6 +22,9 @@ Future<void> main() async {
     systemNavigationBarColor: Color(0xFF0A0A0F),
   ));
 
+  final settingsController = SettingsController();
+  await settingsController.init();
+
   try {
     audioHandler = await AudioService.init(
       builder: () => AuraAudioHandler(),
@@ -42,12 +45,12 @@ Future<void> main() async {
       Provider<AuraAudioHandler>(create: (_) => audioHandler),
       Provider<MediaScanner>(create: (_) => MediaScanner()),
       ChangeNotifierProvider(
-          create: (c) => PlayerController(c.read<AuraAudioHandler>())),
+          create: (c) => PlayerController(c.read<AuraAudioHandler>())..initSleepTimer(c.read<SettingsController>())),
       ChangeNotifierProvider(
           create: (c) => LibraryController(
               c.read<MediaScanner>(), c.read<PlayerController>())),
       ChangeNotifierProvider(create: (_) => PlaylistRepository()),
-      ChangeNotifierProvider(create: (_) => SettingsController()),
+      ChangeNotifierProvider.value(value: settingsController),
     ],
     child: const AuraApp(),
   ));

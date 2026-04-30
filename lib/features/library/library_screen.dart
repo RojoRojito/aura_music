@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:on_audio_query/on_audio_query.dart';
 import 'package:provider/provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/models/song.dart';
 import '../player/player_controller.dart';
@@ -50,35 +51,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
             onPressed: ctrl.scanLibrary),
         ],
       ),
-      body: ctrl.isLoading
-        ? const Center(child: CircularProgressIndicator(color: AuraColors.primary))
-        : ctrl.error != null
-          ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-              const Icon(Icons.error_outline, color: AuraColors.accent, size: 48),
-              const SizedBox(height: 12),
-              Text(ctrl.error!, style: const TextStyle(color: AuraColors.textMuted)),
-              const SizedBox(height: 16),
-              ElevatedButton(onPressed: ctrl.scanLibrary, child: const Text('Reintentar'))]))
-          : ctrl.isEmpty
-            ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                Icon(Icons.music_off, color: AuraColors.textMuted, size: 64),
-                const SizedBox(height: 16),
-                Text('No se encontraron canciones',
-                    style: TextStyle(color: AuraColors.textMuted, fontSize: 16))]))
-            : Column(children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-                  child: Row(children: [
-                    Text('${ctrl.songs.length} canciones',
-                        style: TextStyle(color: AuraColors.textMuted, fontSize: 13))])),
-                Expanded(
-                  child: ListView.builder(
-                    padding: const EdgeInsets.only(bottom: 160),
-                    itemCount: ctrl.songs.length,
-                    itemBuilder: (_, i) => _SongTile(
-                      song: ctrl.songs[i],
-                      onTap: () => ctrl.playSong(ctrl.songs[i])))),
-              ]),
+      body: _buildBody(ctrl),
       floatingActionButton: ctrl.songs.isNotEmpty
         ? FloatingActionButton.extended(
             onPressed: ctrl.shuffleAll,
@@ -87,6 +60,59 @@ class _LibraryScreenState extends State<LibraryScreen> {
             label: const Text('Aleatorio'))
         : null,
     ));
+  }
+
+  Widget _buildBody(LibraryController ctrl) {
+    switch (ctrl.status) {
+      case LibraryStatus.loading:
+        return const Center(child: CircularProgressIndicator(color: AuraColors.primary));
+      case LibraryStatus.noPermission:
+        return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          const Icon(Icons.no_accounts, color: AuraColors.accent, size: 64),
+          const SizedBox(height: 16),
+          Text('Permiso de audio denegado', style: TextStyle(color: AuraColors.textMuted, fontSize: 16)),
+          const SizedBox(height: 8),
+          Text('Concede permisos para ver tus canciones', style: TextStyle(color: AuraColors.textMuted, fontSize: 13)),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            onPressed: () async {
+              await openAppSettings();
+            },
+            icon: const Icon(Icons.settings),
+            label: const Text('Abrir ajustes'),
+            style: ElevatedButton.styleFrom(backgroundColor: AuraColors.primary),
+          ),
+        ]));
+      case LibraryStatus.error:
+        return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          const Icon(Icons.error_outline, color: AuraColors.accent, size: 48),
+          const SizedBox(height: 12),
+          Text(ctrl.errorMessage ?? 'Error desconocido', style: const TextStyle(color: AuraColors.textMuted)),
+          const SizedBox(height: 16),
+          ElevatedButton(onPressed: ctrl.scanLibrary, child: const Text('Reintentar')),
+        ]));
+      case LibraryStatus.empty:
+        return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Icon(Icons.music_off, color: AuraColors.textMuted, size: 64),
+          const SizedBox(height: 16),
+          Text('No se encontraron canciones', style: TextStyle(color: AuraColors.textMuted, fontSize: 16)),
+        ]));
+      case LibraryStatus.initial:
+      case LibraryStatus.loaded:
+        return Column(children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+            child: Row(children: [
+              Text('${ctrl.songs.length} canciones', style: TextStyle(color: AuraColors.textMuted, fontSize: 13))])),
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.only(bottom: 160),
+              itemCount: ctrl.songs.length,
+              itemBuilder: (_, i) => _SongTile(
+                song: ctrl.songs[i],
+                onTap: () => ctrl.playSong(ctrl.songs[i])))),
+        ]);
+    }
   }
 }
 

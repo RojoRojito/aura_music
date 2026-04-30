@@ -21,13 +21,12 @@ class AuraTheme {
         primary: AuraColors.primary,
         secondary: AuraColors.secondary,
         surface: AuraColors.surface,
-        background: AuraColors.background,
       ),
       scaffoldBackgroundColor: AuraColors.background,
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: AuraColors.surface,
         indicatorColor: AuraColors.primary.withOpacity(0.2),
-        labelTextStyle: MaterialStateProperty.all(
+        labelTextStyle: WidgetStateProperty.all(
           const TextStyle(color: AuraColors.textMuted, fontSize: 11),
         ),
       ),

@@ -1,19 +1,24 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import '../../data/models/song.dart';
 import '../../services/audio_handler.dart';
 import '../../services/dynamic_theme_service.dart';
+import '../settings/settings_controller.dart';
 
 class PlayerController extends ChangeNotifier {
   final AuraAudioHandler _h;
   final DynamicThemeService _theme = DynamicThemeService.instance;
+  SettingsController? _settings;
+  StreamSubscription<void>? _sleepTimerSub;
 
-  PlayerController(this._h) {
-    _h.playingStream.listen((_) => notifyListeners());
-    _h.mediaItem.listen((_) {
-      if (_h.currentSong?.albumId != null) {
-        _theme.updateFromAlbumArt(_h.currentSong!.albumId!);
-      }
+  PlayerController(this._h);
+
+  void initSleepTimer(SettingsController settings) {
+    _settings = settings;
+    _sleepTimerSub?.cancel();
+    _sleepTimerSub = settings.onSleepTimerExpired.listen((_) {
+      _h.pause();
       notifyListeners();
     });
   }
@@ -44,4 +49,10 @@ class PlayerController extends ChangeNotifier {
   Future<void> setRepeat(LoopMode m) => _h.setRepeatLoopMode(m);
   Future<void> setShuffle(bool e)    => _h.setShuffleEnabled(e);
   Future<void> setSpeed(double s)    => _h.setSpeed(s);
+
+  @override
+  void dispose() {
+    _sleepTimerSub?.cancel();
+    super.dispose();
+  }
 }
