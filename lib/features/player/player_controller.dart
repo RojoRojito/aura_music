@@ -11,7 +11,6 @@ class PlayerController extends ChangeNotifier {
   final AuraAudioHandler _h;
   final DynamicThemeService _theme = DynamicThemeService.instance;
   final StatePersistenceService _persistence = StatePersistenceService();
-  SettingsController? _settings;
   StreamSubscription<void>? _sleepTimerSub;
   StreamSubscription<void>? _queueChangeSub;
   bool _initialized = false;
@@ -21,7 +20,6 @@ class PlayerController extends ChangeNotifier {
   Future<void> init(SettingsController settings) async {
     if (_initialized) return;
     _initialized = true;
-    _settings = settings;
 
     await _persistence.init();
     _setupSleepTimer(settings);
