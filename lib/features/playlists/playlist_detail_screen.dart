@@ -97,7 +97,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                       padding: const EdgeInsets.only(right: 16),
                       child: const Icon(Icons.delete, color: Colors.white),
                     ),
-                    onDismissed: (_) => _removeSong(repo, song.id!),
+                    onDismissed: (_) => _removeSong(repo, song.id),
                     child: SongTile(
                       song: song,
                       onTap: () => ctrl.playSong(song, queue: playlist.songs),

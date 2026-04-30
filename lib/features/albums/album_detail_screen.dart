@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:on_audio_query/on_audio_query.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
@@ -7,7 +6,6 @@ import '../../data/models/song.dart';
 import '../../services/media_scanner.dart';
 import '../player/player_controller.dart';
 import '../../widgets/song_tile.dart';
-import '../../widgets/add_to_playlist_sheet.dart';
 
 class AlbumDetailScreen extends StatefulWidget {
   final AlbumModel album;

@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../services/media_scanner.dart';
 import '../../data/models/song.dart';
-import '../../data/models/artist.dart';
 import '../player/player_controller.dart';
 import '../../widgets/song_tile.dart';
 
@@ -67,10 +66,10 @@ class _ArtistTile extends StatelessWidget {
             nullArtworkWidget: Container(
               color: AuraColors.surfaceHigh,
               child: const Icon(Icons.person, color: AuraColors.primary))))),
-      title: Text(artist.artist ?? 'Artista desconocido',
+      title: Text(artist.artist.isNotEmpty ? artist.artist! : 'Artista desconocido',
           maxLines: 1, overflow: TextOverflow.ellipsis,
           style: const TextStyle(color: AuraColors.text, fontSize: 15)),
-      subtitle: Text('${artist.numberOfTracks ?? 0} canciones',
+      subtitle: Text('${artist.numberOfTracks} canciones',
           style: const TextStyle(color: AuraColors.textMuted, fontSize: 12)),
       onTap: () => _showArtistDetail(context),
     );
@@ -119,7 +118,7 @@ class _ArtistDetailScreenState extends State<_ArtistDetailScreen> {
             expandedHeight: 280,
             pinned: true,
             flexibleSpace: FlexibleSpaceBar(
-              title: Text(widget.artist.artist ?? 'Artista',
+              title: Text(widget.artist.artist.isNotEmpty ? widget.artist.artist! : 'Artista',
                   style: const TextStyle(color: AuraColors.text, fontSize: 16),
                   maxLines: 1, overflow: TextOverflow.ellipsis),
               background: Stack(children: [

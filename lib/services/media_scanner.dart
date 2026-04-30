@@ -1,7 +1,6 @@
 import 'package:on_audio_query/on_audio_query.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../data/models/song.dart';
-import '../data/models/artist.dart';
 
 class MediaScanner {
   final OnAudioQuery _q = OnAudioQuery();

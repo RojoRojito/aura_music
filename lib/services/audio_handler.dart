@@ -74,30 +74,31 @@ class AuraAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
   @override Future<void> play()  => _player.play();
   @override Future<void> pause() => _player.pause();
-  @override Future<void> seek(Duration pos) => _player.seek(pos);
+  @override Future<void> seek(Duration position) => _player.seek(position);
 
   @override
-  Future<void> setRepeatMode(AudioServiceRepeatMode mode) async {
+  Future<void> setRepeatMode(AudioServiceRepeatMode repeatMode) async {
     final m = {
       AudioServiceRepeatMode.none:  LoopMode.off,
       AudioServiceRepeatMode.one:   LoopMode.one,
       AudioServiceRepeatMode.all:   LoopMode.all,
       AudioServiceRepeatMode.group: LoopMode.all,
-    }[mode] ?? LoopMode.off;
+    }[repeatMode] ?? LoopMode.off;
     await _player.setLoopMode(m);
   }
 
   Future<void> setRepeatLoopMode(LoopMode m) => _player.setLoopMode(m);
 
   @override
-  Future<void> setShuffleMode(AudioServiceShuffleMode mode) async {
+  Future<void> setShuffleMode(AudioServiceShuffleMode shuffleMode) async {
     await _player.setShuffleModeEnabled(
-        mode != AudioServiceShuffleMode.none);
+        shuffleMode != AudioServiceShuffleMode.none);
   }
 
   Future<void> setShuffleEnabled(bool e) => _player.setShuffleModeEnabled(e);
 
-  Future<void> setSpeed(double s) => _player.setSpeed(s);
+  @override
+  Future<void> setSpeed(double speed) => _player.setSpeed(speed);
 
   @override
   Future<void> skipToNext() async {

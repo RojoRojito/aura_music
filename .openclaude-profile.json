@@ -1,0 +1,9 @@
+{
+  "profile": "openai",
+  "env": {
+    "OPENAI_BASE_URL": "http://localhost:11434/v1",
+    "OPENAI_MODEL": "openrouter/free",
+    "OPENAI_API_KEY": "66f3600fdc9f439da6358ce2a6e880e5.p_pytWz_a8ov99yOGsyb0X3C"
+  },
+  "createdAt": "2026-04-30T00:46:51.327Z"
+}
