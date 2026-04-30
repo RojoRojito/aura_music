@@ -23,8 +23,10 @@ class AuraAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   List<Song> _queue = [];
   int _currentIndex = 0;
   final _errorController = StreamController<AudioError>.broadcast();
-  
+  final _queueChangeController = StreamController<void>.broadcast();
+
   Stream<AudioError> get errorStream => _errorController.stream;
+  Stream<void> get onQueueChanged => _queueChangeController.stream;
 
   AuraAudioHandler() { _init(); }
 
@@ -122,6 +124,7 @@ class AuraAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     _queue = queue ?? [song];
     _currentIndex = index ?? _queue.indexOf(song);
     if (_currentIndex < 0) { _currentIndex = 0; _queue.insert(0, song); }
+    _queueChangeController.add(null);
     await _loadCurrent();
   }
 
@@ -151,11 +154,28 @@ class AuraAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     }
   }
 
-  Future<void> addToQueue(Song song) async => _queue.add(song);
-  Future<void> playNext(Song song) async => _queue.insert(_currentIndex + 1, song);
+  Future<void> addToQueue(Song song) async {
+    _queue.add(song);
+    _queueChangeController.add(null);
+  }
+
+  Future<void> playNext(Song song) async {
+    _queue.insert(_currentIndex + 1, song);
+    _queueChangeController.add(null);
+  }
+
   Future<void> removeFromQueue(int i) async {
     if (i == _currentIndex) return;
     _queue.removeAt(i);
     if (i < _currentIndex) _currentIndex--;
+    _queueChangeController.add(null);
+  }
+
+  Future<void> restoreQueue(List<Song> songs, int index) async {
+    if (songs.isEmpty) return;
+    _queue = List.from(songs);
+    _currentIndex = index.clamp(0, _queue.length - 1);
+    _queueChangeController.add(null);
+    await _loadCurrent();
   }
 }

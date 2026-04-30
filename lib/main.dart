@@ -40,12 +40,14 @@ Future<void> main() async {
     audioHandler = AuraAudioHandler();
   }
 
+  final playerController = PlayerController(audioHandler);
+  await playerController.init(settingsController);
+
   runApp(MultiProvider(
     providers: [
       Provider<AuraAudioHandler>(create: (_) => audioHandler),
       Provider<MediaScanner>(create: (_) => MediaScanner()),
-      ChangeNotifierProvider(
-          create: (c) => PlayerController(c.read<AuraAudioHandler>())..initSleepTimer(c.read<SettingsController>())),
+      ChangeNotifierProvider.value(value: playerController),
       ChangeNotifierProvider(
           create: (c) => LibraryController(
               c.read<MediaScanner>(), c.read<PlayerController>())),

@@ -4,23 +4,52 @@ import 'package:just_audio/just_audio.dart';
 import '../../data/models/song.dart';
 import '../../services/audio_handler.dart';
 import '../../services/dynamic_theme_service.dart';
+import '../../services/state_persistence_service.dart';
 import '../settings/settings_controller.dart';
 
 class PlayerController extends ChangeNotifier {
   final AuraAudioHandler _h;
   final DynamicThemeService _theme = DynamicThemeService.instance;
+  final StatePersistenceService _persistence = StatePersistenceService();
   SettingsController? _settings;
   StreamSubscription<void>? _sleepTimerSub;
+  StreamSubscription<void>? _queueChangeSub;
+  bool _initialized = false;
 
   PlayerController(this._h);
 
-  void initSleepTimer(SettingsController settings) {
+  Future<void> init(SettingsController settings) async {
+    if (_initialized) return;
+    _initialized = true;
     _settings = settings;
+
+    await _persistence.init();
+    _setupSleepTimer(settings);
+    _setupQueuePersistence();
+    _restoreQueueIfNeeded();
+  }
+
+  void _setupSleepTimer(SettingsController settings) {
     _sleepTimerSub?.cancel();
     _sleepTimerSub = settings.onSleepTimerExpired.listen((_) {
       _h.pause();
       notifyListeners();
     });
+  }
+
+  void _setupQueuePersistence() {
+    _queueChangeSub?.cancel();
+    _queueChangeSub = _h.onQueueChanged.listen((_) {
+      _persistence.saveQueueState(_h.songQueue, _h.currentIndex, _h.player.position);
+    });
+  }
+
+  Future<void> _restoreQueueIfNeeded() async {
+    final state = await _persistence.restoreQueueState();
+    if (state != null && state.queue.isNotEmpty) {
+      await _h.restoreQueue(state.queue, state.currentIndex);
+      await _h.seek(state.position);
+    }
   }
 
   Song? get currentSong        => _h.currentSong;
@@ -53,6 +82,7 @@ class PlayerController extends ChangeNotifier {
   @override
   void dispose() {
     _sleepTimerSub?.cancel();
+    _queueChangeSub?.cancel();
     super.dispose();
   }
 }
