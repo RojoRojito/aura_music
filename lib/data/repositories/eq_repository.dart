@@ -90,7 +90,6 @@ class EqRepository extends ChangeNotifier {
 
   /// Limpia configuraciones antiguas (opcional, para mantenimiento)
   Future<void> clearUnusedConfigs(List<int> validSongIds) async {
-    final db = await database;
     final allConfigs = await getAllConfigs();
     for (final config in allConfigs) {
       if (!validSongIds.contains(config.songId)) {

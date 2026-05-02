@@ -12,10 +12,7 @@ class AlbumsScreen extends StatefulWidget {
 
 class _AlbumsScreenState extends State<AlbumsScreen> {
   List<AlbumModel> _albums = [];
-  List<AlbumModel> _filtered = [];
   bool _loading = true;
-  bool _searching = false;
-  final _searchCtrl = TextEditingController();
 
   @override
   void initState() {
@@ -23,79 +20,33 @@ class _AlbumsScreenState extends State<AlbumsScreen> {
     _load();
   }
 
-  @override
-  void dispose() {
-    _searchCtrl.dispose();
-    super.dispose();
-  }
-
   Future<void> _load() async {
     final albums = await context.read<MediaScanner>().scanAlbums();
-    setState(() { _albums = albums; _filtered = albums; _loading = false; });
-  }
-
-  void _search(String q) {
-    setState(() {
-      _searching = q.isNotEmpty;
-      _filtered = q.isEmpty
-          ? _albums
-          : _albums.where((a) =>
-              a.album.toLowerCase().contains(q.toLowerCase()) ||
-              (a.artist?.toLowerCase().contains(q.toLowerCase()) ?? false)
-          ).toList();
-    });
+    setState(() { _albums = albums; _loading = false; });
   }
 
   @override
   Widget build(BuildContext context) {
-    final settings = context.watch<SettingsController>();
-    final isDark = settings.themeMode == ThemeMode.dark;
-    final bgColor = isDark ? AuraColors.background : AuraColors.lightBackground;
-    final textColor = isDark ? AuraColors.text : AuraColors.lightText;
-
     return Scaffold(
-      backgroundColor: bgColor,
+      backgroundColor: AuraColors.background,
       appBar: AppBar(
-        backgroundColor: bgColor,
+        backgroundColor: AuraColors.background,
         elevation: 0,
-        title: _searching
-          ? TextField(
-              controller: _searchCtrl, autofocus: true,
-              style: TextStyle(color: textColor),
-              decoration: InputDecoration(
-                hintText: 'Buscar albums...',
-                hintStyle: TextStyle(color: isDark ? AuraColors.textMuted : AuraColors.lightTextMuted),
-                border: InputBorder.none),
-              onChanged: _search)
-          : Text('Albums', style: TextStyle(
-              color: textColor, fontWeight: FontWeight.bold, fontSize: 22)),
-        actions: [
-          IconButton(
-            icon: Icon(_searching ? Icons.close : Icons.search,
-                color: isDark ? AuraColors.textMuted : AuraColors.lightTextMuted),
-            onPressed: () {
-              setState(() {
-                _searching = !_searching;
-                if (!_searching) { _searchCtrl.clear(); _filtered = _albums; }
-              });
-            }),
-          IconButton(
-            icon: Icon(Icons.refresh, color: isDark ? AuraColors.textMuted : AuraColors.lightTextMuted),
-            onPressed: _load),
-        ],
+        title: const Text('Albums', style: TextStyle(
+            color: AuraColors.text, fontWeight: FontWeight.bold, fontSize: 22)),
       ),
       body: _loading
         ? const Center(child: CircularProgressIndicator(color: AuraColors.primary))
-        : _filtered.isEmpty
-          ? Center(child: Text('No hay albums',
-              style: TextStyle(color: isDark ? AuraColors.textMuted : AuraColors.lightTextMuted)))
+        : _albums.isEmpty
+          ? const Center(child: Text('No hay albums',
+              style: TextStyle(color: AuraColors.textMuted)))
           : GridView.builder(
               padding: const EdgeInsets.all(12),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2, crossAxisSpacing: 10,
                 mainAxisSpacing: 10, childAspectRatio: 0.85),
-              itemCount: _filtered.length,
-              itemBuilder: (_, i) => _AlbumCard(album: _filtered[i])),
+              itemCount: _albums.length,
+              itemBuilder: (_, i) => _AlbumCard(album: _albums[i])),
     );
   }
 }
@@ -106,17 +57,12 @@ class _AlbumCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final settings = context.watch<SettingsController>();
-    final isDark = settings.themeMode == ThemeMode.dark;
-    final surfaceColor = isDark ? AuraColors.surface : AuraColors.lightSurface;
-    final surfaceHighColor = isDark ? AuraColors.surfaceHigh : AuraColors.lightSurfaceHigh;
-
     return GestureDetector(
       onTap: () => Navigator.push(context, MaterialPageRoute(
         builder: (_) => AlbumDetailScreen(album: album))),
       child: Container(
         decoration: BoxDecoration(
-          color: surfaceColor,
+          color: AuraColors.surface,
           borderRadius: BorderRadius.circular(12)),
         child: Column(children: [
           Expanded(child: ClipRRect(
@@ -124,16 +70,16 @@ class _AlbumCard extends StatelessWidget {
             child: QueryArtworkWidget(
               id: album.id, type: ArtworkType.ALBUM,
               nullArtworkWidget: Container(
-                color: surfaceHighColor,
+                color: AuraColors.surfaceHigh,
                 child: const Icon(Icons.album, color: AuraColors.primary, size: 48))))),
           Padding(
             padding: const EdgeInsets.all(8),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(album.album, maxLines: 1, overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: isDark ? AuraColors.text : AuraColors.lightText,
+                  style: const TextStyle(color: AuraColors.text,
                       fontSize: 12, fontWeight: FontWeight.w600)),
               Text(album.artist ?? '', maxLines: 1, overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: isDark ? AuraColors.textMuted : AuraColors.lightTextMuted, fontSize: 11)),
+                  style: const TextStyle(color: AuraColors.textMuted, fontSize: 11)),
             ])),
         ]),
       ),

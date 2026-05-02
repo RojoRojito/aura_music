@@ -14,10 +14,7 @@ class ArtistsScreen extends StatefulWidget {
 
 class _ArtistsScreenState extends State<ArtistsScreen> {
   List<ArtistModel> _artists = [];
-  List<ArtistModel> _filtered = [];
   bool _loading = true;
-  bool _searching = false;
-  final _searchCtrl = TextEditingController();
 
   @override
   void initState() {
@@ -25,75 +22,30 @@ class _ArtistsScreenState extends State<ArtistsScreen> {
     _load();
   }
 
-  @override
-  void dispose() {
-    _searchCtrl.dispose();
-    super.dispose();
-  }
-
   Future<void> _load() async {
     final artists = await context.read<MediaScanner>().scanArtists();
-    setState(() { _artists = artists; _filtered = artists; _loading = false; });
-  }
-
-  void _search(String q) {
-    setState(() {
-      _searching = q.isNotEmpty;
-      _filtered = q.isEmpty
-          ? _artists
-          : _artists.where((a) =>
-              a.artist.toLowerCase().contains(q.toLowerCase())
-          ).toList();
-    });
+    setState(() { _artists = artists; _loading = false; });
   }
 
   @override
   Widget build(BuildContext context) {
-    final settings = context.watch<SettingsController>();
-    final isDark = settings.themeMode == ThemeMode.dark;
-    final bgColor = isDark ? AuraColors.background : AuraColors.lightBackground;
-    final textColor = isDark ? AuraColors.text : AuraColors.lightText;
-
     return Scaffold(
-      backgroundColor: bgColor,
+      backgroundColor: AuraColors.background,
       appBar: AppBar(
-        backgroundColor: bgColor,
+        backgroundColor: AuraColors.background,
         elevation: 0,
-        title: _searching
-          ? TextField(
-              controller: _searchCtrl, autofocus: true,
-              style: TextStyle(color: textColor),
-              decoration: InputDecoration(
-                hintText: 'Buscar artistas...',
-                hintStyle: TextStyle(color: isDark ? AuraColors.textMuted : AuraColors.lightTextMuted),
-                border: InputBorder.none),
-              onChanged: _search)
-          : Text('Artistas', style: TextStyle(
-              color: textColor, fontWeight: FontWeight.bold, fontSize: 22)),
-        actions: [
-          IconButton(
-            icon: Icon(_searching ? Icons.close : Icons.search,
-                color: isDark ? AuraColors.textMuted : AuraColors.lightTextMuted),
-            onPressed: () {
-              setState(() {
-                _searching = !_searching;
-                if (!_searching) { _searchCtrl.clear(); _filtered = _artists; }
-              });
-            }),
-          IconButton(
-            icon: Icon(Icons.refresh, color: isDark ? AuraColors.textMuted : AuraColors.lightTextMuted),
-            onPressed: _load),
-        ],
+        title: const Text('Artistas', style: TextStyle(
+            color: AuraColors.text, fontWeight: FontWeight.bold, fontSize: 22)),
       ),
       body: _loading
         ? const Center(child: CircularProgressIndicator(color: AuraColors.primary))
-        : _filtered.isEmpty
-          ? Center(child: Text('No hay artistas',
-              style: TextStyle(color: isDark ? AuraColors.textMuted : AuraColors.lightTextMuted)))
+        : _artists.isEmpty
+          ? const Center(child: Text('No hay artistas',
+              style: TextStyle(color: AuraColors.textMuted)))
           : ListView.builder(
               padding: const EdgeInsets.only(bottom: 160),
-              itemCount: _filtered.length,
-              itemBuilder: (_, i) => _ArtistTile(artist: _filtered[i])),
+              itemCount: _artists.length,
+              itemBuilder: (_, i) => _ArtistTile(artist: _artists[i])),
     );
   }
 }
@@ -104,11 +56,6 @@ class _ArtistTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final settings = context.watch<SettingsController>();
-    final isDark = settings.themeMode == ThemeMode.dark;
-    final textColor = isDark ? AuraColors.text : AuraColors.lightText;
-    final mutedColor = isDark ? AuraColors.textMuted : AuraColors.lightTextMuted;
-
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       leading: ClipRRect(
@@ -117,13 +64,13 @@ class _ArtistTile extends StatelessWidget {
           child: QueryArtworkWidget(
             id: artist.id, type: ArtworkType.ARTIST,
             nullArtworkWidget: Container(
-              color: isDark ? AuraColors.surfaceHigh : AuraColors.lightSurfaceHigh,
-              child: Icon(Icons.person, color: isDark ? AuraColors.primary : AuraColors.primary)))),
-      title: Text(artist.artist.isNotEmpty ? artist.artist! : 'Artista desconocido',
+              color: AuraColors.surfaceHigh,
+              child: const Icon(Icons.person, color: AuraColors.primary))))),
+      title: Text(artist.artist.isNotEmpty ? artist.artist : 'Artista desconocido',
           maxLines: 1, overflow: TextOverflow.ellipsis,
-          style: TextStyle(color: textColor, fontSize: 15)),
+          style: const TextStyle(color: AuraColors.text, fontSize: 15)),
       subtitle: Text('${artist.numberOfTracks} canciones',
-          style: TextStyle(color: mutedColor, fontSize: 12)),
+          style: const TextStyle(color: AuraColors.textMuted, fontSize: 12)),
       onTap: () => _showArtistDetail(context),
     );
   }
@@ -162,37 +109,31 @@ class _ArtistDetailScreenState extends State<_ArtistDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final ctrl = context.watch<PlayerController>();
-    final settings = context.watch<SettingsController>();
-    final isDark = settings.themeMode == ThemeMode.dark;
-    final bgColor = isDark ? AuraColors.background : AuraColors.lightBackground;
-    final textColor = isDark ? AuraColors.text : AuraColors.lightText;
-    final surfaceColor = isDark ? AuraColors.surface : AuraColors.lightSurface;
-
     return Scaffold(
-      backgroundColor: bgColor,
+      backgroundColor: AuraColors.background,
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
-            backgroundColor: bgColor,
+            backgroundColor: AuraColors.background,
             expandedHeight: 280,
             pinned: true,
             flexibleSpace: FlexibleSpaceBar(
-              title: Text(widget.artist.artist.isNotEmpty ? widget.artist.artist! : 'Artista',
-                  style: TextStyle(color: textColor, fontSize: 16),
+              title: Text(widget.artist.artist.isNotEmpty ? widget.artist.artist : 'Artista',
+                  style: const TextStyle(color: AuraColors.text, fontSize: 16),
                   maxLines: 1, overflow: TextOverflow.ellipsis),
               background: Stack(children: [
                 Positioned.fill(
                   child: QueryArtworkWidget(
                     id: widget.artist.id, type: ArtworkType.ARTIST,
                     nullArtworkWidget: Container(
-                      color: isDark ? AuraColors.surfaceHigh : AuraColors.lightSurfaceHigh,
-                      child: Icon(Icons.person, color: isDark ? AuraColors.primary : AuraColors.primary, size: 80)))),
+                      color: AuraColors.surfaceHigh,
+                      child: const Icon(Icons.person, color: AuraColors.primary, size: 80)))),
                 Positioned.fill(
                   child: Container(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                        colors: [Colors.transparent, bgColor.withOpacity(0.8)])))),
+                        colors: [Colors.transparent, AuraColors.background.withOpacity(0.8)])))),
               ]),
             ),
           ),
@@ -201,7 +142,7 @@ class _ArtistDetailScreenState extends State<_ArtistDetailScreen> {
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
               child: Row(children: [
                 Text('${_songs.length} canciones • ${_albums.length} albumes',
-                    style: TextStyle(color: isDark ? AuraColors.textMuted : AuraColors.lightTextMuted, fontSize: 13)),
+                    style: const TextStyle(color: AuraColors.textMuted, fontSize: 13)),
               ]))),
           SliverToBoxAdapter(
             child: Padding(
@@ -218,9 +159,9 @@ class _ArtistDetailScreenState extends State<_ArtistDetailScreen> {
             ? const SliverFillRemaining(
                 child: Center(child: CircularProgressIndicator(color: AuraColors.primary)))
             : _songs.isEmpty
-              ? SliverFillRemaining(
+              ? const SliverFillRemaining(
                   child: Center(child: Text('Sin canciones',
-                      style: TextStyle(color: isDark ? AuraColors.textMuted : AuraColors.lightTextMuted))))
+                      style: TextStyle(color: AuraColors.textMuted))))
               : SliverList(
                   delegate: SliverChildBuilderDelegate(
                     (ctx, i) => SongTile(

@@ -8,7 +8,6 @@ class EqualizerService extends ChangeNotifier {
   final EqRepository _eqRepository;
 
   EqConfig? _currentConfig;
-  int? _currentSongId;
   bool _initialized = false;
   int _bandCount = 0;
   List<int> _centerFreqs = const [];
@@ -55,7 +54,6 @@ class EqualizerService extends ChangeNotifier {
   }
 
   Future<void> loadSong(int songId) async {
-    _currentSongId = songId;
     var config = await _eqRepository.loadForSong(songId);
 
     if (config == null || config.bandLevels.isEmpty) {
