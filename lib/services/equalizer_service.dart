@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:equalizer_flutter/equalizer_flutter.dart';
 import '../data/repositories/eq_repository.dart';
@@ -9,24 +10,22 @@ class EqualizerService extends ChangeNotifier {
   EqConfig? _currentConfig;
   int? _currentSongId;
   bool _initialized = false;
-
-  Equalizer? _equalizer;
-  BassBoost? _bassBoost;
-  Virtualizer? _virtualizer;
+  int _bandCount = 0;
+  List<int> _centerFreqs = const [];
 
   EqualizerService(this._eqRepository);
 
   EqConfig? get currentConfig => _currentConfig;
 
-  int get bandCount => _equalizer?.numberOfBands ?? 0;
+  int get bandCount => _bandCount;
+  List<int> get centerFreqs => _centerFreqs;
 
   List<String> get bandFrequencies {
-    if (_equalizer == null) return const [];
-    return List.generate(bandCount, (i) {
-      final freq = _equalizer!.getBandFreq(i);
-      if (freq >= 1000) return '${(freq / 1000).toStringAsFixed(1)}kHz';
-      return '${freq}Hz';
-    });
+    return _centerFreqs.map((freq) {
+      final hz = freq ~/ 1000;
+      if (hz >= 1000) return '${(hz / 1000).toStringAsFixed(1)}kHz';
+      return '${hz}Hz';
+    }).toList();
   }
 
   static const Map<String, List<int>> presets = {
@@ -43,12 +42,11 @@ class EqualizerService extends ChangeNotifier {
   Future<void> initForSession(int audioSessionId) async {
     if (_initialized) return;
     try {
-      _equalizer = Equalizer(sessionId: audioSessionId);
-      _bassBoost = BassBoost(sessionId: audioSessionId);
-      _virtualizer = Virtualizer(sessionId: audioSessionId);
-      await _equalizer!.init();
-      await _bassBoost!.init();
-      await _virtualizer!.init();
+      await EqualizerFlutter.init(audioSessionId);
+      await EqualizerFlutter.setEnabled(true);
+      final freqs = await EqualizerFlutter.getCenterBandFreqs();
+      _centerFreqs = freqs;
+      _bandCount = freqs.length;
       _initialized = true;
       notifyListeners();
     } catch (e) {
@@ -60,11 +58,10 @@ class EqualizerService extends ChangeNotifier {
     _currentSongId = songId;
     var config = await _eqRepository.loadForSong(songId);
 
-    if (config == null) {
-      final bands = bandCount;
+    if (config == null || config.bandLevels.isEmpty) {
       config = EqConfig(
         songId: songId,
-        bandLevels: List.filled(bands, 0),
+        bandLevels: List.filled(_bandCount, 0),
         bassBoostStrength: 0,
         virtualizerStrength: 0,
         enabled: true,
@@ -81,25 +78,18 @@ class EqualizerService extends ChangeNotifier {
 
     _currentConfig = config;
 
-    if (_equalizer != null) {
-      if (config.enabled) {
-        for (var i = 0; i < config.bandLevels.length; i++) {
-          await _equalizer!.setBandLevel(i, config.bandLevels[i]);
-        }
-      } else {
-        for (var i = 0; i < bandCount; i++) {
-          await _equalizer!.setBandLevel(i, 0);
-        }
+    if (config.enabled) {
+      for (var i = 0; i < config.bandLevels.length && i < _bandCount; i++) {
+        await EqualizerFlutter.setBandLevel(i, config.bandLevels[i]);
+      }
+    } else {
+      for (var i = 0; i < _bandCount; i++) {
+        await EqualizerFlutter.setBandLevel(i, 0);
       }
     }
 
-    if (_bassBoost != null) {
-      await _bassBoost!.setStrength(config.bassBoostStrength);
-    }
-
-    if (_virtualizer != null) {
-      await _virtualizer!.setStrength(config.virtualizerStrength);
-    }
+    // Bass boost y virtualizer no están soportados por equalizer_flutter.
+    // Los valores se guardan en el repositorio pero no se aplican al hardware.
 
     await _eqRepository.saveForSong(config);
     notifyListeners();
@@ -108,17 +98,15 @@ class EqualizerService extends ChangeNotifier {
   List<int> getPreset(String name) {
     final preset = presets[name];
     if (preset == null || preset.isEmpty) {
-      return List.filled(bandCount, 0);
+      return List.filled(_bandCount, 0);
     }
-    if (preset.length == bandCount) return preset;
-    return List.generate(bandCount, (i) => i < preset.length ? preset[i] : 0);
+    if (preset.length == _bandCount) return preset;
+    return List.generate(_bandCount, (i) => i < preset.length ? preset[i] : 0);
   }
 
   @override
   void dispose() {
-    _equalizer?.release();
-    _bassBoost?.release();
-    _virtualizer?.release();
+    EqualizerFlutter.release();
     super.dispose();
   }
 }
