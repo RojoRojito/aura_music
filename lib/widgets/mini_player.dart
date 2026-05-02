@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../core/theme/app_theme.dart';
 import '../features/player/player_controller.dart';
 import '../features/player/player_screen.dart';
+import '../services/audio_handler.dart';
 
 class MiniPlayer extends StatelessWidget {
   const MiniPlayer({super.key});

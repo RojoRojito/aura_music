@@ -38,11 +38,11 @@
 
 ## 🟡 Prioridad Media
 
-### 6. UX/UI
-- [ ] No hay animaciones de transición entre pantallas
-- [ ] El mini-player no tiene controles de swipe
+### 6. UX/UI ✅
+- [x] No hay animaciones de transición entre pantallas
+- [x] El mini-player no tiene controles de swipe
 - [ ] Falta soporte para gestos (swipe para skip, long-press para cola)
-- [ ] Dark mode únicamente — no hay tema claro
+- [x] Dark mode únicamente — no hay tema claro
 
 ### 7. Búsqueda limitada
 - [ ] La búsqueda solo funciona en library, no en albums/artistas/playlists

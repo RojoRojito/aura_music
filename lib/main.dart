@@ -9,6 +9,8 @@ import 'data/repositories/playlist_repository.dart';
 import 'features/player/player_controller.dart';
 import 'features/library/library_controller.dart';
 import 'features/settings/settings_controller.dart';
+import 'data/repositories/eq_repository.dart';
+import 'services/equalizer_service.dart';
 
 late AuraAudioHandler audioHandler;
 
@@ -52,6 +54,8 @@ Future<void> main() async {
           create: (c) => LibraryController(
               c.read<MediaScanner>(), c.read<PlayerController>())),
       ChangeNotifierProvider(create: (_) => PlaylistRepository()),
+      ChangeNotifierProvider(create: (_) => EqRepository()),
+      ChangeNotifierProvider(create: (c) => EqualizerService(c.read<EqRepository>())),
       ChangeNotifierProvider.value(value: settingsController),
     ],
     child: const AuraApp(),
