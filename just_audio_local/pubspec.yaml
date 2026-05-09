@@ -1,0 +1,30 @@
+name: just_audio
+description: Audio playback library for Flutter.
+version: 0.9.36
+homepage: https://github.com/ryanheise/just_audio
+author: Ryan Heise <ryan@ryanheise.com>
+
+environment:
+  sdk: '>=2.12.0 <3.0.0'
+  flutter: '>=1.17.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  audio_session: ^0.1.6
+  rxdart: ^0.27.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  mockito: ^5.0.0
+  build_runner: ^2.0.0
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: com.ryanheise.just_audio
+        pluginClass: JustAudioPlugin
+      ios:
+        pluginClass: JustAudioPlugin

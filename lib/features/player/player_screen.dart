@@ -6,7 +6,9 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/models/song.dart';
 import '../../services/audio_handler.dart';
+import '../../services/equalizer_service.dart';
 import 'player_controller.dart';
+import '../equalizer/equalizer_screen.dart';
 
 class PlayerScreen extends StatefulWidget {
   final Song song;
@@ -165,6 +167,33 @@ class _PlayerScreenState extends State<PlayerScreen> {
       IconButton(
         icon: const Icon(Icons.queue_music, color: AuraColors.textMuted),
         onPressed: () => _showQueue(context, ctrl)),
+      Consumer<EqualizerService>(
+        builder: (_, eqSvc, __) {
+          final active = eqSvc.isEnabled;
+          return Container(
+            decoration: active
+                ? BoxDecoration(
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AuraColors.primary.withOpacity(0.35),
+                        blurRadius: 12,
+                      )
+                    ],
+                  )
+                : null,
+            child: IconButton(
+              icon: Icon(Icons.equalizer,
+                  color: active ? AuraColors.primary : AuraColors.textMuted),
+              tooltip: 'Ecualizador',
+              onPressed: () {
+                final song = context.read<PlayerController>().currentSong;
+                if (song == null) return;
+                Navigator.push(context, MaterialPageRoute(
+                    builder: (_) => EqualizerScreen(song: song)));
+              }),
+          );
+        }),
       IconButton(
         icon: Icon(
           _loop == LoopMode.off ? Icons.repeat

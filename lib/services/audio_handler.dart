@@ -24,6 +24,7 @@ class AuraAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   int _currentIndex = 0;
   final _errorController = StreamController<AudioError>.broadcast();
   final _queueChangeController = StreamController<void>.broadcast();
+  void Function(int songId)? onSongChanged;
 
   Stream<AudioError> get errorStream => _errorController.stream;
   Stream<void> get onQueueChanged => _queueChangeController.stream;
@@ -139,9 +140,10 @@ class AuraAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       duration: Duration(milliseconds: s.duration),
       artUri: s.albumArtUri != null ? Uri.parse(s.albumArtUri!) : null,
     ));
-    try {
+try {
       await _player.setAudioSource(AudioSource.uri(Uri.parse(s.uri)));
       await _player.play();
+      onSongChanged?.call(s.id);
     } catch (e) {
       _errorController.add(AudioError(
         'No se pudo reproducir: ${s.title}',

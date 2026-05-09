@@ -19,9 +19,9 @@ class EqRepository extends ChangeNotifier {
       await db.execute('''
         CREATE TABLE eq_configs (
           song_id INTEGER PRIMARY KEY,
-          band_levels TEXT NOT NULL,
-          bass_boost INTEGER DEFAULT 0,
-          virtualizer INTEGER DEFAULT 0,
+          band_gains TEXT NOT NULL,
+          bass_boost REAL DEFAULT 0.0,
+          virtualizer REAL DEFAULT 0.0,
           enabled INTEGER DEFAULT 1,
           preset_name TEXT)
       ''');

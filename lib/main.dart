@@ -13,6 +13,7 @@ import 'data/repositories/eq_repository.dart';
 import 'services/equalizer_service.dart';
 
 late AuraAudioHandler audioHandler;
+late EqualizerService equalizerService;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,6 +27,7 @@ Future<void> main() async {
 
   final settingsController = SettingsController();
   await settingsController.init();
+  final eqRepository = EqRepository();
 
   try {
     audioHandler = await AudioService.init(
@@ -42,6 +44,12 @@ Future<void> main() async {
     audioHandler = AuraAudioHandler();
   }
 
+  equalizerService = EqualizerService(eqRepository);
+
+  audioHandler.onSongChanged = (songId) {
+    equalizerService.loadForSong(songId);
+  };
+
   final playerController = PlayerController(audioHandler);
   await playerController.init(settingsController);
 
@@ -54,8 +62,8 @@ Future<void> main() async {
           create: (c) => LibraryController(
               c.read<MediaScanner>(), c.read<PlayerController>())),
       ChangeNotifierProvider(create: (_) => PlaylistRepository()),
-      ChangeNotifierProvider(create: (_) => EqRepository()),
-      ChangeNotifierProvider(create: (c) => EqualizerService(c.read<EqRepository>())),
+      ChangeNotifierProvider<EqRepository>(create: (_) => eqRepository),
+      ChangeNotifierProvider<EqualizerService>.value(value: equalizerService),
       ChangeNotifierProvider.value(value: settingsController),
     ],
     child: const AuraApp(),

@@ -15,13 +15,13 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
-      
+
       - name: Setup Flutter SDK
         uses: subosito/flutter-action@v2
         with:
@@ -33,21 +33,43 @@ jobs:
           # 1. Respaldar Manifest
           cp android/app/src/main/AndroidManifest.xml AndroidManifest.xml.bak
           
-          # 2. Borrar carpeta android para evitar conflictos
+          # 2. Respaldar archivos Kotlin nativos (nuestro DSP)
+          mkdir -p native_backup
+          cp -r android/app/src/main/kotlin/com/daviddev/aura_music/ native_backup/ 2>/dev/null || true
+          cp android/app/build.gradle native_backup/ 2>/dev/null || true
+          
+          # 3. Respaldar just_audio_local
+          if [ -d "just_audio_local" ]; then
+            cp -r just_audio_local just_audio_local.bak
+          fi
+          
+          # 4. Borrar carpeta android
           rm -rf android
           
-          # 3. Regenerar desde cero
+          # 5. Regenerar desde cero
           flutter create . --platforms android
           
-          # 4. Restaurar Manifest
+          # 6. Restaurar Manifest
           mkdir -p android/app/src/main/
           cp AndroidManifest.xml.bak android/app/src/main/AndroidManifest.xml
+          
+          # 7. Restaurar archivos Kotlin nativos
+          if [ -d "native_backup/com/daviddev/aura_music" ]; then
+            mkdir -p android/app/src/main/kotlin/com/daviddev/aura_music/
+            cp -r native_backup/com/daviddev/aura_music/* android/app/src/main/kotlin/com/daviddev/aura_music/
+          fi
+          
+          # 8. Restaurar just_audio_local
+          if [ -d "just_audio_local.bak" ]; then
+            cp -r just_audio_local.bak just_audio_local
+          fi
 
-          # 5. Parchear Kotlin en settings.gradle (estilo moderno)
-          # Busca la línea de kotlin y reemplaza la versión sea cual sea
+      - name: Restore Gradle Kotlin version
+        run: |
+          # Parchear Kotlin en settings.gradle
           sed -i 's/id "org.jetbrains.kotlin.android" version "[^"]*"/id "org.jetbrains.kotlin.android" version "1.9.22"/' android/settings.gradle
           
-          # 6. Parchear Kotlin en build.gradle (estilo antiguo) por si acaso
+          # Parchear Kotlin en build.gradle si existe
           if [ -f android/build.gradle ]; then
             sed -i "s/ext.kotlin_version = '[^']*'/ext.kotlin_version = '1.9.22'/" android/build.gradle
           fi
@@ -58,7 +80,7 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
-      - name: Remove tests (optional)
+      - name: Remove tests
         run: rm -rf test
 
       - name: Run Analyzer
