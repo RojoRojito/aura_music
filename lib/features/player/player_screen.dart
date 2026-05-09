@@ -57,7 +57,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       Column(children: [
         const Text('REPRODUCIENDO', style: TextStyle(
             color: AuraColors.textMuted, fontSize: 10, letterSpacing: 2)),
-        Text(ctrl.currentSong?.album ?? widget.song.album,
+        Text(ctrl.currentSong?.album ?? '',
             style: const TextStyle(
                 color: AuraColors.text, fontSize: 13, fontWeight: FontWeight.w600)),
       ]),
@@ -81,7 +81,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
         child: QueryArtworkWidget(
-          id: (ctrl.currentSong?.albumId ?? widget.song.albumId) ?? 0,
+          id: ctrl.currentSong?.albumId ?? 0,
           type: ArtworkType.ALBUM, quality: 100, size: 512,
           nullArtworkWidget: Container(
             color: AuraColors.surfaceHigh,
@@ -94,12 +94,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
     padding: const EdgeInsets.symmetric(horizontal: 28),
     child: Row(children: [
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(ctrl.currentSong?.title ?? widget.song.title,
+        Text(ctrl.currentSong?.title ?? '',
             maxLines: 1, overflow: TextOverflow.ellipsis,
             style: const TextStyle(
                 color: AuraColors.text, fontSize: 20, fontWeight: FontWeight.bold)),
         const SizedBox(height: 4),
-        Text(ctrl.currentSong?.artist ?? widget.song.artist,
+        Text(ctrl.currentSong?.artist ?? '',
             maxLines: 1, overflow: TextOverflow.ellipsis,
             style: const TextStyle(color: AuraColors.textMuted, fontSize: 14)),
       ])),

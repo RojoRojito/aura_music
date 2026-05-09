@@ -5,9 +5,25 @@ import '../../data/models/eq_config.dart';
 import '../../data/models/song.dart';
 import '../../services/equalizer_service.dart';
 
-class EqualizerScreen extends StatelessWidget {
+class EqualizerScreen extends StatefulWidget {
   final Song song;
   const EqualizerScreen({super.key, required this.song});
+
+  @override
+  State<EqualizerScreen> createState() => _EqualizerScreenState();
+}
+
+class _EqualizerScreenState extends State<EqualizerScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final eqService = context.read<EqualizerService>();
+      if (eqService.currentConfig == null) {
+        eqService.loadForSong(widget.song.id);
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,7 +52,7 @@ class EqualizerScreen extends StatelessWidget {
               ),
             ),
             Text(
-              song.title,
+              widget.song.title,
               style: const TextStyle(
                 color: AuraColors.textMuted,
                 fontSize: 12,

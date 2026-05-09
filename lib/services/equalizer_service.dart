@@ -46,7 +46,10 @@ class EqualizerService extends ChangeNotifier {
   }
 
   Future<void> setBandGain(int index, double gainDb) async {
-    if (_currentConfig == null) return;
+    if (_currentConfig == null) {
+      if (_currentSongId == null) return;
+      _currentConfig = EqConfig.flat(songId: _currentSongId!);
+    }
     final clampedGain = gainDb.clamp(-12.0, 12.0);
     final newBands = List<double>.from(_currentConfig!.bandGains);
     if (index < bandCount) newBands[index] = clampedGain;
@@ -67,7 +70,10 @@ class EqualizerService extends ChangeNotifier {
   }
 
   Future<void> setBassBoost(double gainDb) async {
-    if (_currentConfig == null) return;
+    if (_currentConfig == null) {
+      if (_currentSongId == null) return;
+      _currentConfig = EqConfig.flat(songId: _currentSongId!);
+    }
     final clampedGain = gainDb.clamp(0.0, 15.0);
     _currentConfig = _currentConfig!.copyWith(bassBoost: clampedGain);
     
@@ -82,7 +88,10 @@ class EqualizerService extends ChangeNotifier {
   }
 
   Future<void> setVirtualizer(double strength) async {
-    if (_currentConfig == null) return;
+    if (_currentConfig == null) {
+      if (_currentSongId == null) return;
+      _currentConfig = EqConfig.flat(songId: _currentSongId!);
+    }
     final clampedStrength = strength.clamp(0.0, 1.0);
     _currentConfig = _currentConfig!.copyWith(virtualizer: clampedStrength);
     
@@ -97,14 +106,17 @@ class EqualizerService extends ChangeNotifier {
   }
 
   Future<void> toggleEnabled() async {
-    if (_currentConfig == null) return;
+    if (_currentConfig == null) {
+      if (_currentSongId == null) return;
+      _currentConfig = EqConfig.flat(songId: _currentSongId!);
+    }
     final newEnabled = !_currentConfig!.enabled;
     _currentConfig = _currentConfig!.copyWith(enabled: newEnabled);
-    
+
     try {
       await _channel.invokeMethod("setEnabled", {"enabled": newEnabled});
     } catch (e) {}
-    
+
     if (_currentSongId != null) {
       await _eqRepository.saveForSong(_currentConfig!);
     }

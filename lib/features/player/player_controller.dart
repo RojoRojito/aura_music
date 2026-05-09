@@ -68,8 +68,15 @@ class PlayerController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> next()                => _h.skipToNext();
-  Future<void> previous()            => _h.skipToPrevious();
+  Future<void> next() async {
+    await _h.skipToNext();
+    notifyListeners();
+  }
+
+  Future<void> previous() async {
+    await _h.skipToPrevious();
+    notifyListeners();
+  }
   Future<void> seek(Duration p)      => _h.seek(p);
   Future<void> addToQueue(Song s)    => _h.addToQueue(s);
   Future<void> playNext(Song s)      => _h.playNext(s);
