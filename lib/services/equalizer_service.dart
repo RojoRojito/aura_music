@@ -1,5 +1,5 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
 import '../data/models/eq_config.dart';
 import '../data/repositories/eq_repository.dart';
 

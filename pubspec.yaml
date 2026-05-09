@@ -30,7 +30,3 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-
-dependency_overrides:
-  just_audio:
-    path: ./just_audio_local
