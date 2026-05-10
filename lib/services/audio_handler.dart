@@ -59,7 +59,10 @@ class AuraAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     _player.processingStateStream.listen((state) {
       if (state == ProcessingState.completed) skipToNext();
     });
-    _player.androidAudioSessionId.listen((sessionId) {
+  }
+
+  void _checkAudioSessionId() {
+    _player.androidAudioSessionId.then((sessionId) {
       if (sessionId != null && sessionId != 0) {
         debugPrint('[AudioHandler] audioSessionId = $sessionId');
         onAudioSessionId?.call(sessionId);
@@ -150,6 +153,7 @@ class AuraAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 try {
       await _player.setAudioSource(AudioSource.uri(Uri.parse(s.uri)));
       await _player.play();
+      _checkAudioSessionId();
       onSongChanged?.call(s.id);
     } catch (e) {
       _errorController.add(AudioError(
