@@ -80,4 +80,29 @@ class SongStats {
 
     return (base + recencyBonus).clamp(0.0, double.infinity);
   }
+
+  SongStats copyWith({
+    int? songId,
+    String? title,
+    String? artist,
+    int? playCount,
+    int? skipCount,
+    double? totalListenedSeconds,
+    double? totalDurationSeconds,
+    bool? isFavorite,
+    DateTime? lastPlayed,
+    double? score,
+  }) {
+    return SongStats(
+      songId: songId ?? this.songId,
+      title: title ?? this.title,
+      artist: artist ?? this.artist,
+      playCount: playCount ?? this.playCount,
+      skipCount: skipCount ?? this.skipCount,
+      totalListenedSeconds: totalListenedSeconds ?? this.totalListenedSeconds,
+      totalDurationSeconds: totalDurationSeconds ?? this.totalDurationSeconds,
+      isFavorite: isFavorite ?? this.isFavorite,
+      lastPlayed: lastPlayed ?? this.lastPlayed,
+    );
+  }
 }

@@ -1,0 +1,45 @@
+import 'package:flutter/foundation.dart';
+import '../models/song_stats.dart';
+import '../repositories/stats_repository.dart';
+
+class RecommendationEngine extends ChangeNotifier {
+  final StatsRepository statsRepository;
+
+  List<SongStats> _allStats = [];
+  List<SongStats> _topPicks = [];
+  List<SongStats> _mostPlayed = [];
+  bool _isLoading = false;
+
+  RecommendationEngine(this.statsRepository);
+
+  List<SongStats> get topPicks => _topPicks;
+  List<SongStats> get mostPlayed => _mostPlayed;
+  bool get isLoading => _isLoading;
+  bool get hasData => _allStats.isNotEmpty;
+
+  Future<void> compute() async {
+    _isLoading = true;
+    notifyListeners();
+
+    _allStats = await statsRepository.getAllStats();
+
+    final scored = _allStats.map((s) => s.copyWith()).toList();
+
+    _topPicks = scored
+        .where((s) => s.playCount > 0 || s.isFavorite)
+        .toList()
+      ..sort((a, b) => b.computeScore().compareTo(a.computeScore()));
+    _topPicks = _topPicks.take(30).toList();
+
+    _mostPlayed = scored
+        .where((s) => s.playCount > 0)
+        .toList()
+      ..sort((a, b) => b.playCount.compareTo(a.playCount));
+    _mostPlayed = _mostPlayed.take(10).toList();
+
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  Future<void> refresh() => compute();
+}

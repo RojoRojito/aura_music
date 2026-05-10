@@ -5,15 +5,18 @@ import 'package:provider/provider.dart';
 import 'app.dart';
 import 'services/audio_handler.dart';
 import 'services/media_scanner.dart';
+import 'services/stats_tracker.dart';
 import 'data/repositories/playlist_repository.dart';
 import 'data/repositories/favorites_repository.dart';
 import 'data/database/app_database.dart';
+import 'data/repositories/stats_repository.dart';
 import 'features/player/player_controller.dart';
 import 'features/library/library_controller.dart';
 import 'features/settings/settings_controller.dart';
 import 'data/repositories/eq_repository.dart';
 import 'services/dynamic_theme_service.dart';
 import 'services/equalizer_service.dart';
+import 'features/discover/recommendation_engine.dart';
 
 late AuraAudioHandler audioHandler;
 late EqualizerService equalizerService;
@@ -54,19 +57,33 @@ Future<void> main() async {
 
   equalizerService = EqualizerService(eqRepository);
 
+  final playerController = PlayerController(audioHandler);
+  await playerController.init(settingsController);
+
+  final statsRepository = StatsRepository();
+  final recommendationEngine = RecommendationEngine(statsRepository);
+  await recommendationEngine.compute();
+
+  final statsTracker = StatsTracker(
+    statsRepository: statsRepository,
+    audioHandler: audioHandler,
+  );
+  await statsTracker.init(favoritesRepository);
+
+  RecommendationEngine? recEngineRef;
   audioHandler.onSongChanged = (songId) {
     equalizerService.loadForSong(songId);
     if (settingsController.dynamicThemeEnabled) {
       DynamicThemeService.instance.updateFromAlbumArt(songId);
     }
+    Future.delayed(const Duration(seconds: 2), () {
+      recEngineRef?.refresh();
+    });
   };
 
   audioHandler.onAudioSessionId = (sessionId) {
     equalizerService.initSession(sessionId);
   };
-
-  final playerController = PlayerController(audioHandler);
-  await playerController.init(settingsController);
 
   runApp(MultiProvider(
     providers: [
@@ -81,7 +98,13 @@ Future<void> main() async {
       ChangeNotifierProvider<EqRepository>(create: (_) => eqRepository),
       ChangeNotifierProvider<EqualizerService>.value(value: equalizerService),
       ChangeNotifierProvider.value(value: settingsController),
+      Provider<StatsRepository>.value(value: statsRepository),
+      ChangeNotifierProvider<RecommendationEngine>.value(value: recommendationEngine),
+      Provider<StatsTracker>.value(value: statsTracker),
     ],
-    child: const AuraApp(),
+    child: Builder(builder: (context) {
+      recEngineRef = context.read<RecommendationEngine>();
+      return const AuraApp();
+    }),
   ));
 }
