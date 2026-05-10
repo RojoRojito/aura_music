@@ -22,6 +22,7 @@ class AuraAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   final AudioPlayer _player = AudioPlayer();
   List<Song> _queue = [];
   int _currentIndex = 0;
+  bool _sessionIdSent = false;
   final _errorController = StreamController<AudioError>.broadcast();
   final _queueChangeController = StreamController<void>.broadcast();
   void Function(int songId)? onSongChanged;
@@ -57,6 +58,10 @@ class AuraAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       ));
     });
     _player.processingStateStream.listen((state) {
+      if (state == ProcessingState.ready && !_sessionIdSent) {
+        _sessionIdSent = true;
+        _checkAudioSessionId();
+      }
       if (state == ProcessingState.completed) skipToNext();
     });
   }
@@ -154,7 +159,6 @@ class AuraAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 try {
       await _player.setAudioSource(AudioSource.uri(Uri.parse(s.uri)));
       await _player.play();
-      _checkAudioSessionId();
       onSongChanged?.call(s.id);
     } catch (e) {
       _errorController.add(AudioError(

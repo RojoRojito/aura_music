@@ -18,10 +18,7 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final eqService = context.read<EqualizerService>();
-      if (eqService.currentConfig == null) {
-        eqService.loadForSong(widget.song.id);
-      }
+      context.read<EqualizerService>().loadForSong(widget.song.id);
     });
   }
 

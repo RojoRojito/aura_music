@@ -17,6 +17,7 @@ class MainActivity: FlutterActivity(), MethodCallHandler {
     private var equalizer: Equalizer? = null
     private var bassBoost: BassBoost? = null
     private var virtualizer: Virtualizer? = null
+    private var currentSessionId = -1
     private var isEnabled = true
     private var currentBassBoostGain = 0f
     private var currentVirtualizerStrength = 0f
@@ -34,9 +35,22 @@ class MainActivity: FlutterActivity(), MethodCallHandler {
         methodChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName)
         methodChannel.setMethodCallHandler(this)
         Log.d(TAG, "MethodChannel registered: $channelName")
+        
+        android.os.Handler(android.os.Looper.getMainLooper())
+            .postDelayed({
+                if (currentSessionId == -1) {
+                    Log.w(TAG, "No session ID received from Dart after 3s, trying session 0")
+                    initAudioEffects(0)
+                }
+            }, 3000)
     }
 
     private fun initAudioEffects(sessionId: Int) {
+        if (sessionId == currentSessionId) {
+            Log.d(TAG, "Session ID unchanged ($sessionId), skipping re-init")
+            return
+        }
+        currentSessionId = sessionId
         Log.d(TAG, "initAudioEffects($sessionId)")
         
         equalizer?.release()
