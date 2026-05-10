@@ -1,5 +1,6 @@
 package com.daviddev.aura_music
 
+import android.media.audiofx.Equalizer
 import android.util.Log
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -10,8 +11,10 @@ class MainActivity: FlutterActivity(), MethodCallHandler {
     private val TAG = "AuraEQ"
     private val channelName = "com.daviddev.aura/equalizer"
     private lateinit var equalizerEngine: EqualizerEngine
+    private var equalizer: Equalizer? = null
     private lateinit var audioProcessor: AuraAudioProcessor
     private lateinit var methodChannel: MethodChannel
+    private var isEqualizerAttached = false
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         Log.d(TAG, "configureFlutterEngine: initializing DSP engine")
@@ -26,6 +29,21 @@ class MainActivity: FlutterActivity(), MethodCallHandler {
         methodChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName)
         methodChannel.setMethodCallHandler(this)
         Log.d(TAG, "MethodChannel registered: $channelName")
+        
+        attachEqualizerToAudio()
+    }
+
+    private fun attachEqualizerToAudio() {
+        try {
+            val audioSessionId = 0
+            equalizer = Equalizer(0, audioSessionId).apply {
+                enabled = equalizerEngine.isEnabled()
+                Log.d(TAG, "Equalizer attached to session $audioSessionId, enabled=$enabled")
+            }
+            isEqualizerAttached = true
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to attach equalizer: $e")
+        }
     }
 
     override fun onMethodCall(call: io.flutter.plugin.common.MethodCall, result: io.flutter.plugin.common.MethodChannel.Result) {
@@ -35,6 +53,7 @@ class MainActivity: FlutterActivity(), MethodCallHandler {
                 val bandIndex = call.argument<Int>("bandIndex") ?: 0
                 val gainDb = call.argument<Double>("gainDb") ?: 0.0
                 equalizerEngine.setBandGain(bandIndex, gainDb.toFloat())
+                updateEqualizerBand(bandIndex, gainDb.toFloat())
                 Log.d(TAG, "setBandGain[$bandIndex] = $gainDb dB, isEnabled=${equalizerEngine.isEnabled()}")
                 result.success(null)
             }
@@ -53,6 +72,7 @@ class MainActivity: FlutterActivity(), MethodCallHandler {
             "setEnabled" -> {
                 val enabled = call.argument<Boolean>("enabled") ?: true
                 equalizerEngine.setEnabled(enabled)
+                equalizer?.enabled = enabled
                 Log.d(TAG, "setEnabled = $enabled")
                 result.success(null)
             }
@@ -75,5 +95,24 @@ class MainActivity: FlutterActivity(), MethodCallHandler {
                 result.notImplemented()
             }
         }
+    }
+
+    private fun updateEqualizerBand(band: Int, gainDb: Float) {
+        equalizer?.let { eq ->
+            try {
+                val numBands = eq.numberOfBands.toInt()
+                if (band in 0 until numBands) {
+                    val level = (gainDb / 15f * 1000).toInt().toShort()
+                    eq.setBandLevel(band.toShort(), level)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error updating EQ band: $e")
+            }
+        }
+    }
+
+    override fun onDestroy() {
+        equalizer?.release()
+        super.onDestroy()
     }
 }

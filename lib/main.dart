@@ -6,10 +6,12 @@ import 'app.dart';
 import 'services/audio_handler.dart';
 import 'services/media_scanner.dart';
 import 'data/repositories/playlist_repository.dart';
+import 'data/repositories/favorites_repository.dart';
 import 'features/player/player_controller.dart';
 import 'features/library/library_controller.dart';
 import 'features/settings/settings_controller.dart';
 import 'data/repositories/eq_repository.dart';
+import 'services/dynamic_theme_service.dart';
 import 'services/equalizer_service.dart';
 
 late AuraAudioHandler audioHandler;
@@ -28,6 +30,8 @@ Future<void> main() async {
   final settingsController = SettingsController();
   await settingsController.init();
   final eqRepository = EqRepository();
+  final favoritesRepository = FavoritesRepository();
+  await favoritesRepository.loadFavorites();
 
   try {
     audioHandler = await AudioService.init(
@@ -48,6 +52,9 @@ Future<void> main() async {
 
   audioHandler.onSongChanged = (songId) {
     equalizerService.loadForSong(songId);
+    if (settingsController.dynamicThemeEnabled) {
+      DynamicThemeService.instance.updateFromAlbumArt(songId);
+    }
   };
 
   final playerController = PlayerController(audioHandler);
@@ -62,6 +69,7 @@ Future<void> main() async {
           create: (c) => LibraryController(
               c.read<MediaScanner>(), c.read<PlayerController>())),
       ChangeNotifierProvider(create: (_) => PlaylistRepository()),
+      ChangeNotifierProvider.value(value: favoritesRepository),
       ChangeNotifierProvider<EqRepository>(create: (_) => eqRepository),
       ChangeNotifierProvider<EqualizerService>.value(value: equalizerService),
       ChangeNotifierProvider.value(value: settingsController),

@@ -15,21 +15,18 @@ class PlaylistDetailScreen extends StatefulWidget {
 
 class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
   late Playlist _playlist;
+  late Future<void> _loadFuture;
 
   @override
   void initState() {
     super.initState();
     _playlist = widget.playlist;
+    _loadFuture = _refreshData();
   }
 
-  void _refresh() {
+  Future<void> _refreshData() async {
     final repo = context.read<PlaylistRepository>();
-    repo.loadPlaylists();
-    final updated = repo.playlists.firstWhere(
-      (p) => p.id == _playlist.id,
-      orElse: () => _playlist,
-    );
-    setState(() => _playlist = updated);
+    await repo.loadPlaylists();
   }
 
   @override
@@ -127,7 +124,6 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
 
   void _removeSong(PlaylistRepository repo, int songId) {
     repo.removeSong(_playlist.id!, songId);
-    _refresh();
   }
 
   void _showDeleteDialog(BuildContext context, PlaylistRepository repo) {

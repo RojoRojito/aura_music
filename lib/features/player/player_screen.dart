@@ -5,6 +5,7 @@ import 'package:on_audio_query/on_audio_query.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/models/song.dart';
+import '../../data/repositories/favorites_repository.dart';
 import '../../services/audio_handler.dart';
 import '../../services/equalizer_service.dart';
 import 'player_controller.dart';
@@ -103,7 +104,20 @@ class _PlayerScreenState extends State<PlayerScreen> {
             maxLines: 1, overflow: TextOverflow.ellipsis,
             style: const TextStyle(color: AuraColors.textMuted, fontSize: 14)),
       ])),
-      Icon(Icons.favorite_border, color: AuraColors.textMuted),
+      Consumer<FavoritesRepository>(
+        builder: (_, favRepo, __) {
+          final songId = ctrl.currentSong?.id;
+          if (songId == null) return const SizedBox.shrink();
+          final isFav = favRepo.isFavorite(songId);
+          return IconButton(
+            icon: Icon(
+              isFav ? Icons.favorite : Icons.favorite_border,
+              color: isFav ? Colors.red : AuraColors.textMuted,
+            ),
+            onPressed: () => favRepo.toggleFavorite(songId),
+          );
+        },
+      ),
     ]),
   );
 
@@ -219,7 +233,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
         ListTile(leading: const Icon(Icons.queue_play_next, color: AuraColors.text),
             title: const Text('Reproducir siguiente',
                 style: TextStyle(color: AuraColors.text)),
-            onTap: () => Navigator.pop(ctx)),
+            onTap: () {
+              Navigator.pop(ctx);
+              _showPlayNextSongPicker(ctx, ctrl);
+            }),
         ListTile(leading: const Icon(Icons.info_outline, color: AuraColors.text),
             title: const Text('Información de la canción',
                 style: TextStyle(color: AuraColors.text)),
@@ -228,6 +245,49 @@ class _PlayerScreenState extends State<PlayerScreen> {
               _showSongInfo(ctx, ctrl);
             }),
       ]));
+
+  void _showPlayNextSongPicker(BuildContext ctx, PlayerController ctrl) {
+    final currentSong = ctrl.currentSong;
+    if (currentSong == null) return;
+    
+    showModalBottomSheet(
+      context: ctx,
+      backgroundColor: AuraColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => Column(mainAxisSize: MainAxisSize.min, children: [
+        const Padding(
+          padding: EdgeInsets.all(16),
+          child: Text('Selecciona una canción para reproducir después',
+              style: TextStyle(color: AuraColors.text, fontSize: 14))),
+        Expanded(child: ListView.builder(
+          itemCount: ctrl.queue.length,
+          itemBuilder: (_, i) {
+            final s = ctrl.queue[i];
+            if (s.id == currentSong.id) return const SizedBox.shrink();
+            return ListTile(
+              title: Text(s.title,
+                  style: const TextStyle(color: AuraColors.text, fontSize: 14)),
+              subtitle: Text(s.artist,
+                  style: const TextStyle(color: AuraColors.textMuted, fontSize: 12)),
+              onTap: () async {
+                await ctrl.playNext(s);
+                if (ctx.mounted) {
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    SnackBar(
+                      content: Text('${s.title} reproducirá después'),
+                      backgroundColor: AuraColors.surfaceHigh,
+                    ),
+                  );
+                }
+              },
+            );
+          },
+        )),
+      ]),
+    );
+  }
 
   void _showSongInfo(BuildContext ctx, PlayerController ctrl) {
     final s = ctrl.currentSong ?? widget.song;

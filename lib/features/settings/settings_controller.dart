@@ -40,7 +40,7 @@ class SettingsController extends ChangeNotifier {
 
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
-    _sleepTimerMinutes = _prefs?.getInt(_keySleepTimer) ?? 0;
+    _sleepTimerMinutes = 0;
     _playbackSpeed = _prefs?.getDouble(_keyPlaybackSpeed) ?? 1.0;
     _dynamicThemeEnabled = _prefs?.getBool(_keyDynamicTheme) ?? true;
     final themeModeIndex = _prefs?.getInt(_keyThemeMode) ?? 0;

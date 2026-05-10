@@ -4,6 +4,7 @@ import '../../core/theme/app_theme.dart';
 import '../../data/models/song.dart';
 import '../../data/models/playlist.dart';
 import '../../data/repositories/playlist_repository.dart';
+import '../features/player/player_controller.dart';
 
 class AddToPlaylistSheet extends StatelessWidget {
   final Song song;
@@ -13,6 +14,7 @@ class AddToPlaylistSheet extends StatelessWidget {
     return showModalBottomSheet(
       context: context,
       backgroundColor: AuraColors.surface,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => AddToPlaylistSheet(song: song),
@@ -21,15 +23,61 @@ class AddToPlaylistSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<PlaylistRepository>(
-      builder: (_, repo, __) {
-        return Column(mainAxisSize: MainAxisSize.min, children: [
-          const Padding(
-            padding: EdgeInsets.all(16),
-            child: Text('Agregar a playlist',
-                style: TextStyle(color: AuraColors.text, fontSize: 18, fontWeight: FontWeight.bold))),
-          Flexible(
-            child: repo.playlists.isEmpty
+    final ctrl = context.read<PlayerController>();
+    
+    return Column(mainAxisSize: MainAxisSize.min, children: [
+      const Padding(
+        padding: EdgeInsets.all(16),
+        child: Text('Opciones',
+            style: TextStyle(color: AuraColors.text, fontSize: 18, fontWeight: FontWeight.bold))),
+      ListTile(
+        leading: const Icon(Icons.queue_music, color: AuraColors.primary),
+        title: const Text('Añadir a la cola',
+            style: TextStyle(color: AuraColors.text)),
+        onTap: () async {
+          await ctrl.addToQueue(song);
+          if (context.mounted) {
+            Navigator.pop(context);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('${song.title} añadido a la cola'),
+                backgroundColor: AuraColors.surfaceHigh,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        },
+      ),
+      ListTile(
+        leading: const Icon(Icons.queue_play_next, color: AuraColors.secondary),
+        title: const Text('Reproducir siguiente',
+            style: TextStyle(color: AuraColors.text)),
+        onTap: () async {
+          await ctrl.playNext(song);
+          if (context.mounted) {
+            Navigator.pop(context);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('${song.title} reproducirá después'),
+                backgroundColor: AuraColors.surfaceHigh,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        },
+      ),
+      const Divider(color: AuraColors.divider),
+      const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Text('Agregar a playlist',
+              style: TextStyle(color: AuraColors.textMuted, fontSize: 12))),
+      ),
+      Flexible(
+        child: Consumer<PlaylistRepository>(
+          builder: (_, repo, __) {
+            return repo.playlists.isEmpty
               ? const Padding(
                   padding: EdgeInsets.all(32),
                   child: Text('No hay playlists',
@@ -53,18 +101,18 @@ class AddToPlaylistSheet extends StatelessWidget {
                       onTap: () => _addToPlaylist(context, repo, pl),
                     );
                   }),
-          ),
-          const Divider(color: AuraColors.divider),
-          ListTile(
-            leading: const Icon(Icons.add, color: AuraColors.secondary),
-            title: const Text('Crear nueva playlist',
-                style: TextStyle(color: AuraColors.secondary)),
-            onTap: () => _showCreateDialog(context, repo),
-          ),
-          const SizedBox(height: 16),
-        ]);
-      },
-    );
+            );
+          },
+        ),
+      ),
+      ListTile(
+        leading: const Icon(Icons.add, color: AuraColors.secondary),
+        title: const Text('Crear nueva playlist',
+            style: TextStyle(color: AuraColors.secondary)),
+        onTap: () => _showCreateDialog(context),
+      ),
+      const SizedBox(height: 16),
+    ]);
   }
 
   void _addToPlaylist(BuildContext context, PlaylistRepository repo, Playlist pl) async {
@@ -81,8 +129,9 @@ class AddToPlaylistSheet extends StatelessWidget {
     }
   }
 
-  void _showCreateDialog(BuildContext context, PlaylistRepository repo) {
+  void _showCreateDialog(BuildContext context) {
     final ctrl = TextEditingController();
+    final repo = context.read<PlaylistRepository>();
     showDialog(
       context: context,
       builder: (_) => AlertDialog(

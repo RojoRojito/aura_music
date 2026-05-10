@@ -25,6 +25,10 @@ class PlayerController extends ChangeNotifier {
     _setupSleepTimer(settings);
     _setupQueuePersistence();
     _restoreQueueIfNeeded();
+    
+    if (settings.playbackSpeed != 1.0) {
+      await setSpeed(settings.playbackSpeed);
+    }
   }
 
   void _setupSleepTimer(SettingsController settings) {
