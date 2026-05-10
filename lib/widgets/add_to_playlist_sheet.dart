@@ -100,8 +100,8 @@ class AddToPlaylistSheet extends StatelessWidget {
                           style: const TextStyle(color: AuraColors.textMuted, fontSize: 12)),
                       onTap: () => _addToPlaylist(context, repo, pl),
                     );
-                  }),
-            );
+                  },
+                );
           },
         ),
       ),

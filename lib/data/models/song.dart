@@ -11,9 +11,9 @@ class Song {
   final String? genre;
   final int? year;
   final int? trackNumber;
-  bool isFavorite;
+  final bool isFavorite;
 
-  const Song({
+  Song({
     required this.id,
     required this.title,
     required this.artist,

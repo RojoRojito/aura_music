@@ -15,18 +15,14 @@ class PlaylistDetailScreen extends StatefulWidget {
 
 class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
   late Playlist _playlist;
-  late Future<void> _loadFuture;
 
   @override
   void initState() {
     super.initState();
     _playlist = widget.playlist;
-    _loadFuture = _refreshData();
-  }
-
-  Future<void> _refreshData() async {
-    final repo = context.read<PlaylistRepository>();
-    await repo.loadPlaylists();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<PlaylistRepository>().loadPlaylists();
+    });
   }
 
   @override

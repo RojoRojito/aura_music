@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
-import '../models/song.dart';
 
 class FavoritesRepository extends ChangeNotifier {
   static Database? _db;
