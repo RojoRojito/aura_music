@@ -21,6 +21,18 @@ class EqualizerService extends ChangeNotifier {
   bool get isEnabled => _currentConfig?.enabled ?? false;
   int? get currentSongId => _currentSongId;
 
+  Future<void> initSession(int sessionId) async {
+    debugPrint('[EQ] initSession($sessionId)');
+    try {
+      await _channel.invokeMethod("initSession", {"sessionId": sessionId});
+      if (_currentConfig != null) {
+        await _applyFullConfig(_currentConfig!);
+      }
+    } catch (e) {
+      debugPrint('[EQ] initSession ERROR: $e');
+    }
+  }
+
   Future<void> loadForSong(int songId) async {
     debugPrint('[EQ] loadForSong($songId)');
     _currentSongId = songId;

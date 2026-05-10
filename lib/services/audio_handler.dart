@@ -25,6 +25,7 @@ class AuraAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   final _errorController = StreamController<AudioError>.broadcast();
   final _queueChangeController = StreamController<void>.broadcast();
   void Function(int songId)? onSongChanged;
+  void Function(int sessionId)? onAudioSessionId;
 
   Stream<AudioError> get errorStream => _errorController.stream;
   Stream<void> get onQueueChanged => _queueChangeController.stream;
@@ -57,6 +58,12 @@ class AuraAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     });
     _player.processingStateStream.listen((state) {
       if (state == ProcessingState.completed) skipToNext();
+    });
+    _player.androidAudioSessionId.listen((sessionId) {
+      if (sessionId != null && sessionId != 0) {
+        debugPrint('[AudioHandler] audioSessionId = $sessionId');
+        onAudioSessionId?.call(sessionId);
+      }
     });
   }
 

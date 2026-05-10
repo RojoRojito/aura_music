@@ -61,6 +61,10 @@ Future<void> main() async {
     }
   };
 
+  audioHandler.onAudioSessionId = (sessionId) {
+    equalizerService.initSession(sessionId);
+  };
+
   final playerController = PlayerController(audioHandler);
   await playerController.init(settingsController);
 

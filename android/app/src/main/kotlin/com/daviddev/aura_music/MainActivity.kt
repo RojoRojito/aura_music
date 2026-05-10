@@ -1,6 +1,8 @@
 package com.daviddev.aura_music
 
+import android.media.audiofx.BassBoost
 import android.media.audiofx.Equalizer
+import android.media.audiofx.Virtualizer
 import android.util.Log
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -11,72 +13,142 @@ class MainActivity: FlutterActivity(), MethodCallHandler {
     private val TAG = "AuraEQ"
     private val channelName = "com.daviddev.aura/equalizer"
     private lateinit var equalizerEngine: EqualizerEngine
-    private var equalizer: Equalizer? = null
-    private lateinit var audioProcessor: AuraAudioProcessor
     private lateinit var methodChannel: MethodChannel
-    private var isEqualizerAttached = false
+    private var equalizer: Equalizer? = null
+    private var bassBoost: BassBoost? = null
+    private var virtualizer: Virtualizer? = null
+    private var isEnabled = true
+    private var currentBassBoostGain = 0f
+    private var currentVirtualizerStrength = 0f
+    private val currentBandGains = FloatArray(12) { 0f }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         Log.d(TAG, "configureFlutterEngine: initializing DSP engine")
         
         equalizerEngine = EqualizerEngine()
-        audioProcessor = AuraAudioProcessor(equalizerEngine)
         
-        Log.d(TAG, "DSP engine ready. AudioProcessor hash: ${audioProcessor.hashCode()}")
+        Log.d(TAG, "DSP engine ready")
         
         super.configureFlutterEngine(flutterEngine)
         
         methodChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName)
         methodChannel.setMethodCallHandler(this)
         Log.d(TAG, "MethodChannel registered: $channelName")
-        
-        attachEqualizerToAudio()
     }
 
-    private fun attachEqualizerToAudio() {
-        try {
-            val audioSessionId = 0
-            equalizer = Equalizer(0, audioSessionId).apply {
-                enabled = equalizerEngine.isEnabled()
-                Log.d(TAG, "Equalizer attached to session $audioSessionId, enabled=$enabled")
+    private fun initAudioEffects(sessionId: Int) {
+        Log.d(TAG, "initAudioEffects($sessionId)")
+        
+        equalizer?.release()
+        bassBoost?.release()
+        virtualizer?.release()
+        
+        equalizer = Equalizer(0, sessionId).apply { enabled = isEnabled }
+        bassBoost = BassBoost(0, sessionId).apply { enabled = isEnabled }
+        virtualizer = Virtualizer(0, sessionId).apply { enabled = isEnabled }
+        
+        for (i in 0 until 12) {
+            applyBandGain(i, currentBandGains[i])
+        }
+        applyBassBoost(currentBassBoostGain)
+        applyVirtualizer(currentVirtualizerStrength)
+        
+        Log.d(TAG, "Effects initialized for session $sessionId")
+    }
+
+    private fun applyBandGain(bandIndex: Int, gainDb: Float) {
+        currentBandGains[bandIndex] = gainDb
+        equalizer?.let { eq ->
+            try {
+                val numBands = eq.numberOfBands.toInt()
+                val bandRange = eq.bandLevelRange
+                val minLevel = bandRange[0].toFloat()
+                val maxLevel = bandRange[1].toFloat()
+                val millibels = ((gainDb / 12f) * (maxLevel - minLevel) / 2f).toInt().toShort()
+                val deviceBands = numBands
+                val deviceBand = (bandIndex * deviceBands / 12).coerceIn(0, deviceBands - 1)
+                eq.setBandLevel(deviceBand.toShort(), millibels)
+            } catch (e: Exception) {
+                Log.e(TAG, "setBandLevel error: $e")
             }
-            isEqualizerAttached = true
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to attach equalizer: $e")
+        }
+    }
+
+    private fun applyBassBoost(gainDb: Float) {
+        currentBassBoostGain = gainDb
+        bassBoost?.let { bb ->
+            try {
+                val strength = ((gainDb / 15f) * 1000f).toInt().coerceIn(0, 1000).toShort()
+                bb.setStrength(strength)
+            } catch (e: Exception) {
+                Log.e(TAG, "BassBoost error: $e")
+            }
+        }
+    }
+
+    private fun applyVirtualizer(strength: Float) {
+        currentVirtualizerStrength = strength
+        virtualizer?.let { virt ->
+            try {
+                val s = (strength * 1000f).toInt().coerceIn(0, 1000).toShort()
+                virt.setStrength(s)
+            } catch (e: Exception) {
+                Log.e(TAG, "Virtualizer error: $e")
+            }
         }
     }
 
     override fun onMethodCall(call: io.flutter.plugin.common.MethodCall, result: io.flutter.plugin.common.MethodChannel.Result) {
         Log.d(TAG, "onMethodCall: ${call.method} args=${call.arguments}")
         when (call.method) {
+            "initSession" -> {
+                val sessionId = call.argument<Int>("sessionId") ?: 0
+                initAudioEffects(sessionId)
+                result.success(null)
+            }
             "setBandGain" -> {
                 val bandIndex = call.argument<Int>("bandIndex") ?: 0
                 val gainDb = call.argument<Double>("gainDb") ?: 0.0
+                applyBandGain(bandIndex, gainDb.toFloat())
                 equalizerEngine.setBandGain(bandIndex, gainDb.toFloat())
-                updateEqualizerBand(bandIndex, gainDb.toFloat())
-                Log.d(TAG, "setBandGain[$bandIndex] = $gainDb dB, isEnabled=${equalizerEngine.isEnabled()}")
+                Log.d(TAG, "setBandGain[$bandIndex] = $gainDb dB")
                 result.success(null)
             }
             "setBassBoost" -> {
                 val gainDb = call.argument<Double>("gainDb") ?: 0.0
+                applyBassBoost(gainDb.toFloat())
                 equalizerEngine.setBassBoost(gainDb.toFloat())
                 Log.d(TAG, "setBassBoost = $gainDb dB")
                 result.success(null)
             }
             "setVirtualizer" -> {
                 val strength = call.argument<Double>("strength") ?: 0.0
+                applyVirtualizer(strength.toFloat())
                 equalizerEngine.setVirtualizerStrength(strength.toFloat())
                 Log.d(TAG, "setVirtualizer = $strength")
                 result.success(null)
             }
             "setEnabled" -> {
                 val enabled = call.argument<Boolean>("enabled") ?: true
-                equalizerEngine.setEnabled(enabled)
+                isEnabled = enabled
                 equalizer?.enabled = enabled
+                bassBoost?.enabled = enabled
+                virtualizer?.enabled = enabled
+                equalizerEngine.setEnabled(enabled)
                 Log.d(TAG, "setEnabled = $enabled")
                 result.success(null)
             }
             "reset" -> {
+                currentBandGains.fill(0f)
+                currentBassBoostGain = 0f
+                currentVirtualizerStrength = 0f
+                equalizer?.let { eq ->
+                    for (i in 0 until eq.numberOfBands) {
+                        try { eq.setBandLevel(i.toShort(), 0) } catch (e: Exception) { }
+                    }
+                }
+                bassBoost?.setStrength(0)
+                virtualizer?.setStrength(0)
                 equalizerEngine.reset()
                 Log.d(TAG, "reset")
                 result.success(null)
@@ -97,22 +169,10 @@ class MainActivity: FlutterActivity(), MethodCallHandler {
         }
     }
 
-    private fun updateEqualizerBand(band: Int, gainDb: Float) {
-        equalizer?.let { eq ->
-            try {
-                val numBands = eq.numberOfBands.toInt()
-                if (band in 0 until numBands) {
-                    val level = (gainDb / 15f * 1000).toInt().toShort()
-                    eq.setBandLevel(band.toShort(), level)
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error updating EQ band: $e")
-            }
-        }
-    }
-
     override fun onDestroy() {
         equalizer?.release()
+        bassBoost?.release()
+        virtualizer?.release()
         super.onDestroy()
     }
 }
