@@ -61,6 +61,13 @@ class MainActivity: FlutterActivity(), MethodCallHandler {
         bassBoost = BassBoost(0, sessionId).apply { enabled = isEnabled }
         virtualizer = Virtualizer(0, sessionId).apply { enabled = isEnabled }
         
+        Log.d(TAG, "Equalizer created: numBands=${equalizer?.numberOfBands}")
+        Log.d(TAG, "Equalizer enabled=${equalizer?.enabled}")
+        Log.d(TAG, "BassBoost enabled=${bassBoost?.enabled}")
+        Log.d(TAG, "Virtualizer enabled=${virtualizer?.enabled}")
+        val range = equalizer?.bandLevelRange
+        Log.d(TAG, "Band level range: ${range?.get(0)} to ${range?.get(1)} millibels")
+        
         for (i in 0 until 12) {
             applyBandGain(i, currentBandGains[i])
         }
@@ -82,6 +89,7 @@ class MainActivity: FlutterActivity(), MethodCallHandler {
                 val deviceBands = numBands
                 val deviceBand = (bandIndex * deviceBands / 12).coerceIn(0, deviceBands - 1)
                 eq.setBandLevel(deviceBand.toShort(), millibels)
+                Log.d(TAG, "applyBandGain: band=$deviceBand level=$millibels millibels (de ${gainDb}dB)")
             } catch (e: Exception) {
                 Log.e(TAG, "setBandLevel error: $e")
             }

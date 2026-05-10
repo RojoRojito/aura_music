@@ -22,16 +22,16 @@ class EqualizerService extends ChangeNotifier {
   int? get currentSongId => _currentSongId;
 
   Future<void> initSession(int sessionId) async {
-    debugPrint('[EQ] initSession called with sessionId=$sessionId');
+    debugPrint('[EQ] ✓ initSession recibido: sessionId=$sessionId');
     try {
       await _channel.invokeMethod("initSession", {"sessionId": sessionId});
-      debugPrint('[EQ] initSession OK');
+      debugPrint('[EQ] ✓ initSession OK en nativo');
       if (_currentConfig != null) {
         await _applyFullConfig(_currentConfig!);
-        debugPrint('[EQ] Config reapplied after session init');
+        debugPrint('[EQ] ✓ config reaplicada');
       }
     } catch (e) {
-      debugPrint('[EQ] initSession ERROR: $e');
+      debugPrint('[EQ] ✗ initSession ERROR: $e');
     }
   }
 

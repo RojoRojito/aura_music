@@ -59,7 +59,6 @@ class AuraAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     });
     _player.processingStateStream.listen((state) {
       if (state == ProcessingState.ready && !_sessionIdSent) {
-        _sessionIdSent = true;
         _checkAudioSessionId();
       }
       if (state == ProcessingState.completed) skipToNext();
@@ -67,13 +66,22 @@ class AuraAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   }
 
   void _checkAudioSessionId() async {
-    try {
-      final sessionId = await _player.androidAudioSessionId;
-      if (sessionId != null && sessionId != 0) {
-        debugPrint('[AudioHandler] audioSessionId = $sessionId');
-        onAudioSessionId?.call(sessionId);
+    for (int attempt = 0; attempt < 10; attempt++) {
+      await Future.delayed(const Duration(milliseconds: 500));
+      try {
+        final sessionId = await _player.androidAudioSessionId;
+        if (sessionId != null && sessionId != 0) {
+          _sessionIdSent = true;
+          debugPrint('[AudioHandler] sessionId=$sessionId en intento $attempt');
+          onAudioSessionId?.call(sessionId);
+          return;
+        }
+        debugPrint('[AudioHandler] intento $attempt: sessionId=$sessionId (nulo o cero)');
+      } catch (e) {
+        debugPrint('[AudioHandler] intento $attempt error: $e');
       }
-    } catch (_) {}
+    }
+    debugPrint('[AudioHandler] FALLO: no se obtuvo sessionId en 10 intentos');
   }
 
   Stream<PositionData> get positionDataStream =>
