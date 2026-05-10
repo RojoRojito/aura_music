@@ -119,7 +119,7 @@ class EqualizerService extends ChangeNotifier {
   }
 
   Future<void> toggleEnabled() async {
-    debugPrint('[EQ] toggleEnabled called, currentConfig=${_currentConfig?.enabled}');
+    debugPrint('[EQ] toggleEnabled called, currentConfig=${_currentConfig?.enabled}, songId=$_currentSongId');
     if (_currentConfig == null) {
       if (_currentSongId == null) {
         debugPrint('[EQ] toggleEnabled: no songId, returning');
@@ -129,14 +129,9 @@ class EqualizerService extends ChangeNotifier {
     }
     final newEnabled = !_currentConfig!.enabled;
     _currentConfig = _currentConfig!.copyWith(enabled: newEnabled);
+    debugPrint('[EQ] newEnabled = $newEnabled, calling _applyFullConfig');
 
-    try {
-      debugPrint('[EQ] invoking setEnabled($newEnabled)');
-      await _channel.invokeMethod("setEnabled", {"enabled": newEnabled});
-      debugPrint('[EQ] setEnabled success');
-    } catch (e) {
-      debugPrint('[EQ] toggleEnabled ERROR: $e');
-    }
+    await _applyFullConfig(_currentConfig!);
 
     if (_currentSongId != null) {
       await _eqRepository.saveForSong(_currentConfig!);
