@@ -22,15 +22,18 @@ class EqualizerService extends ChangeNotifier {
   int? get currentSongId => _currentSongId;
 
   Future<void> loadForSong(int songId) async {
+    debugPrint('[EQ] loadForSong($songId)');
     final config = await _eqRepository.loadForSong(songId);
     _currentConfig = config ?? EqConfig.flat(songId: songId);
     _currentSongId = songId;
+    debugPrint('[EQ] Config loaded: enabled=${_currentConfig!.enabled}, preset=${_currentConfig!.presetName}');
     await _applyFullConfig(_currentConfig!);
     notifyListeners();
   }
 
   Future<void> _applyFullConfig(EqConfig config) async {
     try {
+      debugPrint('[EQ] _applyFullConfig: enabled=${config.enabled}');
       await _channel.invokeMethod("setEnabled", {"enabled": config.enabled});
       for (var i = 0; i < bandCount; i++) {
         await _channel.invokeMethod("setBandGain", {
@@ -40,8 +43,9 @@ class EqualizerService extends ChangeNotifier {
       }
       await _channel.invokeMethod("setBassBoost", {"gainDb": config.bassBoost});
       await _channel.invokeMethod("setVirtualizer", {"strength": config.virtualizer});
+      debugPrint('[EQ] Full config applied successfully');
     } catch (e) {
-      // Silently ignore channel errors
+      debugPrint('[EQ] _applyFullConfig ERROR: $e');
     }
   }
 
@@ -53,16 +57,19 @@ class EqualizerService extends ChangeNotifier {
     final clampedGain = gainDb.clamp(-12.0, 12.0);
     final newBands = List<double>.from(_currentConfig!.bandGains);
     if (index < bandCount) newBands[index] = clampedGain;
-    
+
     _currentConfig = _currentConfig!.copyWith(bandGains: newBands, presetName: null);
-    
+
     try {
+      debugPrint('[EQ] setBandGain($index, $clampedGain)');
       await _channel.invokeMethod("setBandGain", {
         "bandIndex": index,
         "gainDb": clampedGain,
       });
-    } catch (e) {}
-    
+    } catch (e) {
+      debugPrint('[EQ] setBandGain ERROR: $e');
+    }
+
     if (_currentSongId != null) {
       await _eqRepository.saveForSong(_currentConfig!);
     }
@@ -76,11 +83,14 @@ class EqualizerService extends ChangeNotifier {
     }
     final clampedGain = gainDb.clamp(0.0, 15.0);
     _currentConfig = _currentConfig!.copyWith(bassBoost: clampedGain);
-    
+
     try {
+      debugPrint('[EQ] setBassBoost($clampedGain)');
       await _channel.invokeMethod("setBassBoost", {"gainDb": clampedGain});
-    } catch (e) {}
-    
+    } catch (e) {
+      debugPrint('[EQ] setBassBoost ERROR: $e');
+    }
+
     if (_currentSongId != null) {
       await _eqRepository.saveForSong(_currentConfig!);
     }
@@ -94,11 +104,14 @@ class EqualizerService extends ChangeNotifier {
     }
     final clampedStrength = strength.clamp(0.0, 1.0);
     _currentConfig = _currentConfig!.copyWith(virtualizer: clampedStrength);
-    
+
     try {
+      debugPrint('[EQ] setVirtualizer($clampedStrength)');
       await _channel.invokeMethod("setVirtualizer", {"strength": clampedStrength});
-    } catch (e) {}
-    
+    } catch (e) {
+      debugPrint('[EQ] setVirtualizer ERROR: $e');
+    }
+
     if (_currentSongId != null) {
       await _eqRepository.saveForSong(_currentConfig!);
     }
@@ -106,16 +119,24 @@ class EqualizerService extends ChangeNotifier {
   }
 
   Future<void> toggleEnabled() async {
+    debugPrint('[EQ] toggleEnabled called, currentConfig=${_currentConfig?.enabled}');
     if (_currentConfig == null) {
-      if (_currentSongId == null) return;
+      if (_currentSongId == null) {
+        debugPrint('[EQ] toggleEnabled: no songId, returning');
+        return;
+      }
       _currentConfig = EqConfig.flat(songId: _currentSongId!);
     }
     final newEnabled = !_currentConfig!.enabled;
     _currentConfig = _currentConfig!.copyWith(enabled: newEnabled);
 
     try {
+      debugPrint('[EQ] invoking setEnabled($newEnabled)');
       await _channel.invokeMethod("setEnabled", {"enabled": newEnabled});
-    } catch (e) {}
+      debugPrint('[EQ] setEnabled success');
+    } catch (e) {
+      debugPrint('[EQ] toggleEnabled ERROR: $e');
+    }
 
     if (_currentSongId != null) {
       await _eqRepository.saveForSong(_currentConfig!);
@@ -127,15 +148,15 @@ class EqualizerService extends ChangeNotifier {
     if (_currentConfig == null) return;
     final preset = EqConfig.presets[name];
     if (preset == null) return;
-    
+
     _currentConfig = _currentConfig!.copyWith(
       bandGains: List<double>.from(preset),
       bassBoost: 0.0,
       presetName: name,
     );
-    
+
     await _applyFullConfig(_currentConfig!);
-    
+
     if (_currentSongId != null) {
       await _eqRepository.saveForSong(_currentConfig!);
     }
@@ -145,7 +166,7 @@ class EqualizerService extends ChangeNotifier {
   Future<void> resetSong() async {
     if (_currentSongId == null) return;
     _currentConfig = EqConfig.flat(songId: _currentSongId!);
-    
+
     await _applyFullConfig(_currentConfig!);
     await _eqRepository.deleteForSong(_currentSongId!);
     notifyListeners();
