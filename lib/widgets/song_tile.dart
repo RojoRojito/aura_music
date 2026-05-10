@@ -4,6 +4,7 @@ import 'package:on_audio_query/on_audio_query.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/models/song.dart';
+import '../../data/repositories/favorites_repository.dart';
 import '../features/player/player_controller.dart';
 import 'add_to_playlist_sheet.dart';
 
@@ -26,6 +27,8 @@ class SongTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final playing = context.watch<PlayerController>().currentSong?.id == song.id;
+    final isFav = context.watch<FavoritesRepository>().isFavorite(song.id);
+    
     final tile = ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       leading: showAlbumArt
@@ -58,6 +61,15 @@ class SongTile extends StatelessWidget {
       endActionPane: ActionPane(
         motion: const ScrollMotion(),
         children: [
+          SlidableAction(
+            onPressed: (_) {
+              context.read<FavoritesRepository>().toggleFavorite(song.id);
+            },
+            backgroundColor: Colors.red.shade700,
+            foregroundColor: Colors.white,
+            icon: isFav ? Icons.favorite : Icons.favorite_border,
+            label: 'Favorito',
+          ),
           SlidableAction(
             onPressed: (_) => AddToPlaylistSheet.show(context, song),
             backgroundColor: AuraColors.secondary,

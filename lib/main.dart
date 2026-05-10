@@ -7,6 +7,7 @@ import 'services/audio_handler.dart';
 import 'services/media_scanner.dart';
 import 'data/repositories/playlist_repository.dart';
 import 'data/repositories/favorites_repository.dart';
+import 'data/database/app_database.dart';
 import 'features/player/player_controller.dart';
 import 'features/library/library_controller.dart';
 import 'features/settings/settings_controller.dart';
@@ -29,6 +30,9 @@ Future<void> main() async {
 
   final settingsController = SettingsController();
   await settingsController.init();
+  
+  await AppDatabase.instance.database;
+  
   final eqRepository = EqRepository();
   final favoritesRepository = FavoritesRepository();
   await favoritesRepository.loadFavorites();

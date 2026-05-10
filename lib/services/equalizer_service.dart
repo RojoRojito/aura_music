@@ -23,9 +23,9 @@ class EqualizerService extends ChangeNotifier {
 
   Future<void> loadForSong(int songId) async {
     debugPrint('[EQ] loadForSong($songId)');
+    _currentSongId = songId;
     final config = await _eqRepository.loadForSong(songId);
     _currentConfig = config ?? EqConfig.flat(songId: songId);
-    _currentSongId = songId;
     debugPrint('[EQ] Config loaded: enabled=${_currentConfig!.enabled}, preset=${_currentConfig!.presetName}');
     await _applyFullConfig(_currentConfig!);
     notifyListeners();

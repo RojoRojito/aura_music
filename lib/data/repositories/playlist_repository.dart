@@ -1,34 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:sqflite/sqflite.dart';
-import 'package:path/path.dart';
+import '../database/app_database.dart';
 import '../models/playlist.dart';
 import '../models/song.dart';
 
 class PlaylistRepository extends ChangeNotifier {
-  static Database? _db;
   List<Playlist> _playlists = [];
   List<Playlist> get playlists => _playlists;
 
-  Future<Database> get database async {
-    _db ??= await _initDB();
-    return _db!;
-  }
-
-  Future<Database> _initDB() async {
-    final path = join(await getDatabasesPath(), 'aura.db');
-    return openDatabase(path, version: 1, onCreate: (db, _) async {
-      await db.execute('''CREATE TABLE playlists (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        created_at TEXT NOT NULL)''');
-      await db.execute('''CREATE TABLE playlist_songs (
-        playlist_id INTEGER, song_id INTEGER,
-        song_title TEXT, song_artist TEXT,
-        song_uri TEXT, song_duration INTEGER,
-        album_id INTEGER, position INTEGER,
-        PRIMARY KEY (playlist_id, song_id))''');
-    });
-  }
+  Future<Database> get database => AppDatabase.instance.database;
 
   Future<void> loadPlaylists() async {
     final db = await database;

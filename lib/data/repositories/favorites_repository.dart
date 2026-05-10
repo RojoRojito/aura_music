@@ -1,27 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:sqflite/sqflite.dart';
-import 'package:path/path.dart';
+import '../database/app_database.dart';
 
 class FavoritesRepository extends ChangeNotifier {
-  static Database? _db;
   final Set<int> _favoriteIds = {};
 
   Set<int> get favoriteIds => _favoriteIds;
 
   bool isFavorite(int songId) => _favoriteIds.contains(songId);
 
-  Future<Database> get database async {
-    _db ??= await _initDB();
-    return _db!;
-  }
-
-  Future<Database> _initDB() async {
-    final path = join(await getDatabasesPath(), 'aura.db');
-    return openDatabase(path, version: 1, onCreate: (db, _) async {
-      await db.execute('''CREATE TABLE IF NOT EXISTS favorites (
-        song_id INTEGER PRIMARY KEY)''');
-    });
-  }
+  Future<Database> get database => AppDatabase.instance.database;
 
   Future<void> loadFavorites() async {
     final db = await database;
