@@ -1,7 +1,7 @@
 import 'dart:async';
 import '../data/repositories/stats_repository.dart';
 import '../data/repositories/favorites_repository.dart';
-import '../../data/models/song.dart';
+import '../data/models/song.dart';
 import 'audio_handler.dart';
 
 class StatsTracker {

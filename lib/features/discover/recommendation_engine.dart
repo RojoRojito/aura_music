@@ -1,9 +1,11 @@
 import 'package:flutter/foundation.dart';
-import '../models/song_stats.dart';
-import '../repositories/stats_repository.dart';
+import '../../data/models/song_stats.dart';
+import '../../data/repositories/stats_repository.dart';
 
 class RecommendationEngine extends ChangeNotifier {
   final StatsRepository statsRepository;
+
+  RecommendationEngine(this.statsRepository);
 
   List<SongStats> _allStats = [];
   List<SongStats> _topPicks = [];

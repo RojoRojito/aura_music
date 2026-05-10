@@ -60,7 +60,7 @@ Future<void> main() async {
   final playerController = PlayerController(audioHandler);
   await playerController.init(settingsController);
 
-  final statsRepository = StatsRepository();
+  final statsRepository = StatsRepository.instance;
   final recommendationEngine = RecommendationEngine(statsRepository);
   await recommendationEngine.compute();
 
