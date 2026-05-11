@@ -12,8 +12,6 @@ class RecommendationEngine extends ChangeNotifier {
   List<SongStats> _mostPlayed = [];
   bool _isLoading = false;
 
-  RecommendationEngine(this.statsRepository);
-
   List<SongStats> get topPicks => _topPicks;
   List<SongStats> get mostPlayed => _mostPlayed;
   bool get isLoading => _isLoading;
