@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:rxdart/rxdart.dart';
 import '../data/models/song.dart';
 
 export 'package:just_audio/just_audio.dart' show LoopMode;
@@ -20,26 +21,15 @@ class AudioError {
 }
 
 class AuraAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
-  final AndroidEqualizer androidEqualizer = AndroidEqualizer();
-  final AndroidBassBoost androidBassBoost = AndroidBassBoost();
-  final AndroidVirtualizer androidVirtualizer = AndroidVirtualizer();
-
-  late final AudioPlayer _player = AudioPlayer(
-    audioPipeline: AudioPipeline(
-      androidAudioEffects: [
-        androidEqualizer,
-        androidBassBoost,
-        androidVirtualizer,
-      ],
-    ),
-  );
-
+  final AudioPlayer _player = AudioPlayer();
   List<Song> _queue = [];
   int _currentIndex = 0;
+  bool _sessionIdSent = false;
   bool _isSkipping = false;
   final _errorController = StreamController<AudioError>.broadcast();
   final _queueChangeController = StreamController<void>.broadcast();
   void Function(int songId)? onSongChanged;
+  void Function(int sessionId)? onAudioSessionId;
 
   Stream<AudioError> get errorStream => _errorController.stream;
   Stream<void> get onQueueChanged => _queueChangeController.stream;
@@ -74,13 +64,39 @@ class AuraAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     });
 
     _player.processingStateStream.listen((state) {
+      if (state == ProcessingState.ready && !_sessionIdSent) {
+        _checkAudioSessionId();
+      }
       if (state == ProcessingState.completed && !_isSkipping) skipToNext();
     });
   }
 
+  void _checkAudioSessionId() async {
+    for (int attempt = 0; attempt < 10; attempt++) {
+      await Future.delayed(const Duration(milliseconds: 500));
+      try {
+        final sessionId = _player.androidAudioSessionId;
+        if (sessionId != null && sessionId != 0) {
+          _sessionIdSent = true;
+          debugPrint('[AudioHandler] sessionId=$sessionId en intento $attempt');
+          onAudioSessionId?.call(sessionId);
+          return;
+        }
+        debugPrint('[AudioHandler] intento $attempt: sessionId=$sessionId (nulo o cero)');
+      } catch (e) {
+        debugPrint('[AudioHandler] intento $attempt error: $e');
+      }
+    }
+    debugPrint('[AudioHandler] FALLO: no se obtuvo sessionId en 10 intentos');
+  }
+
   Stream<PositionData> get positionDataStream =>
-      _player.positionDataStream.map((pd) =>
-          PositionData(pd.position, pd.bufferedPosition, pd.duration));
+      Rx.combineLatest3<Duration, Duration, Duration?, PositionData>(
+        _player.positionStream,
+        _player.bufferedPositionStream,
+        _player.durationStream,
+        (p, b, d) => PositionData(p, b, d ?? Duration.zero),
+      );
 
   Stream<bool> get playingStream => _player.playingStream;
 
@@ -167,6 +183,7 @@ class AuraAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
   Future<void> _loadCurrent() async {
     if (_queue.isEmpty) return;
+    _sessionIdSent = false;
     final s = _queue[_currentIndex];
     mediaItem.add(MediaItem(
       id: s.uri,
