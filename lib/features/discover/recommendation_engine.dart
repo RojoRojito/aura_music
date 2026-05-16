@@ -17,7 +17,7 @@ class RecommendationEngine extends ChangeNotifier {
   List<SongStats> get topPicks => _topPicks;
   List<SongStats> get mostPlayed => _mostPlayed;
   bool get isLoading => _isLoading;
-  bool get hasData => _allStats.isNotEmpty;
+  bool get hasData => _topPicks.isNotEmpty || _mostPlayed.isNotEmpty;
 
   Future<void> compute() async {
     _isLoading = true;

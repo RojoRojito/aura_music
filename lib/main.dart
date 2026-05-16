@@ -77,7 +77,7 @@ Future<void> main() async {
     if (settingsController.dynamicThemeEnabled) {
       DynamicThemeService.instance.updateFromAlbumArt(songId);
     }
-    Future.delayed(const Duration(seconds: 2), () {
+    Future.delayed(const Duration(seconds: 5), () {
       recEngineRef?.refresh();
     });
   };

@@ -100,20 +100,40 @@ class _LibraryScreenState extends State<LibraryScreen> {
         ]));
       case LibraryStatus.initial:
       case LibraryStatus.loaded:
-        return Column(children: [
-          const RecommendationSection(),
-          const SizedBox(height: 24),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-            child: Row(children: [
-              Text('${ctrl.songs.length} canciones', style: TextStyle(color: AuraColors.textMuted, fontSize: 13))])),
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.only(bottom: 160),
-              itemCount: ctrl.songs.length,
-              itemBuilder: (_, i) => _SongTile(
-                song: ctrl.songs[i],
-                onTap: () => ctrl.playSong(ctrl.songs[i])))),
+        return CustomScrollView(slivers: [
+          SliverToBoxAdapter(
+            child: Column(
+              children: [
+                const SizedBox(height: 16),
+                const RecommendationSection(),
+                const SizedBox(height: 24),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(children: [
+                    const Text('TODAS LAS CANCIONES',
+                        style: TextStyle(
+                            color: AuraColors.textMuted,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold)),
+                    const Spacer(),
+                    Text('${ctrl.songs.length} canciones',
+                        style:
+                            TextStyle(color: AuraColors.textMuted, fontSize: 11)),
+                  ]),
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+          SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (ctx, i) => _SongTile(
+                  song: ctrl.songs[i],
+                  onTap: () => ctrl.playSong(ctrl.songs[i])),
+              childCount: ctrl.songs.length,
+            ),
+          ),
+          const SliverToBoxAdapter(child: SizedBox(height: 140)),
         ]);
     }
   }

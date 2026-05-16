@@ -44,8 +44,9 @@ class AuraAudioProcessor(private val equalizerEngine: EqualizerEngine) : AudioPr
     }
 
     override fun getOutput(): ByteBuffer {
-        val buffer = outputBuffer.flip() as ByteBuffer
-        return buffer
+        // queueInput already sets position=0 and limit=remaining,
+        // so the buffer is ready for reading as-is. Do NOT flip().
+        return outputBuffer
     }
 
     override fun queueEndOfStream() {
