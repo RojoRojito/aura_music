@@ -56,6 +56,7 @@ Future<void> main() async {
   }
 
   equalizerService = EqualizerService(eqRepository);
+  equalizerService.attachEffects(audioHandler);
 
   final playerController = PlayerController(audioHandler);
   await playerController.init(settingsController);
@@ -80,10 +81,6 @@ Future<void> main() async {
     Future.delayed(const Duration(seconds: 5), () {
       recEngineRef?.refresh();
     });
-  };
-
-  audioHandler.onAudioSessionId = (sessionId) {
-    equalizerService.initSession(sessionId);
   };
 
   runApp(MultiProvider(

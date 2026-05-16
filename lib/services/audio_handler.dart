@@ -1,9 +1,10 @@
 import 'dart:async';
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
-import 'package:rxdart/rxdart.dart';
+import 'package:just_audio/just_audio.dart';
 import '../data/models/song.dart';
+
+export 'package:just_audio/just_audio.dart' show LoopMode;
 
 class PositionData {
   final Duration position;
@@ -18,197 +19,91 @@ class AudioError {
   const AudioError(this.message, {this.isRecoverable = true});
 }
 
-enum LoopMode { off, one, all }
-
-enum ProcessingState { idle, loading, buffering, ready, completed }
-
-class NativePlayer {
-  static const _channel = MethodChannel('com.daviddev.aura/player');
-  static const _eventChannel = EventChannel('com.daviddev.aura/player_events');
-
-  Duration _position = Duration.zero;
-  Duration _duration = Duration.zero;
-  bool _playing = false;
-  ProcessingState _processingState = ProcessingState.idle;
-  LoopMode _loopMode = LoopMode.off;
-  bool _shuffleEnabled = false;
-  double _speed = 1.0;
-  int _sessionId = 0;
-
-  final _positionController = StreamController<Duration>.broadcast();
-  final _bufferedController = StreamController<Duration>.broadcast();
-  final _durationController = StreamController<Duration?>.broadcast();
-  final _playingController = StreamController<bool>.broadcast();
-  final _processingStateController = StreamController<ProcessingState>.broadcast();
-  final _playbackEventController = StreamController<void>.broadcast();
-
-  NativePlayer() {
-    _eventChannel.receiveBroadcastStream().listen(
-      _onEvent,
-      onError: (e) => debugPrint('[NativePlayer] EventChannel error: $e'),
-    );
-  }
-
-  void _onEvent(dynamic event) {
-    if (event is! Map) return;
-    final map = event as Map<dynamic, dynamic>;
-
-    _position = Duration(milliseconds: (map['position'] as int?) ?? 0);
-    _duration = Duration(milliseconds: (map['duration'] as int?) ?? 0);
-    _playing = (map['playing'] as bool?) ?? false;
-    _speed = (map['speed'] as double?) ?? 1.0;
-    _sessionId = (map['sessionId'] as int?) ?? 0;
-
-    final stateIndex = (map['processingState'] as int?) ?? 0;
-    _processingState = ProcessingState.values[stateIndex.clamp(0, ProcessingState.values.length - 1)];
-
-    final loopIndex = (map['loopMode'] as int?) ?? 0;
-    _loopMode = LoopMode.values[loopIndex.clamp(0, LoopMode.values.length - 1)];
-
-    _positionController.add(_position);
-    _durationController.add(_duration);
-    _playingController.add(_playing);
-    _processingStateController.add(_processingState);
-    _playbackEventController.add(null);
-  }
-
-  Duration get position => _position;
-  Duration get duration => _duration;
-  bool get playing => _playing;
-  ProcessingState get processingState => _processingState;
-  LoopMode get loopMode => _loopMode;
-  bool get shuffleModeEnabled => _shuffleEnabled;
-  double get speed => _speed;
-  int get androidAudioSessionId => _sessionId;
-
-  Stream<Duration> get positionStream => _positionController.stream;
-  Stream<Duration> get bufferedPositionStream => _bufferedController.stream;
-  Stream<Duration?> get durationStream => _durationController.stream;
-  Stream<bool> get playingStream => _playingController.stream;
-  Stream<ProcessingState> get processingStateStream => _processingStateController.stream;
-  Stream<void> get playbackEventStream => _playbackEventController.stream;
-
-  Stream<PositionData> get positionDataStream =>
-      Rx.combineLatest3<Duration, Duration, Duration?, PositionData>(
-        positionStream,
-        bufferedPositionStream,
-        durationStream,
-        (p, b, d) => PositionData(p, b, d ?? Duration.zero),
-      );
-
-  Future<void> setAudioSource(String uri) async {
-    await _channel.invokeMethod('setAudioSource', {'uri': uri});
-  }
-
-  Future<void> play() async {
-    await _channel.invokeMethod('play');
-  }
-
-  Future<void> pause() async {
-    await _channel.invokeMethod('pause');
-  }
-
-  Future<void> seek(Duration position) async {
-    await _channel.invokeMethod('seek', {'position': position.inMilliseconds});
-  }
-
-  Future<void> setLoopMode(LoopMode mode) async {
-    _loopMode = mode;
-    await _channel.invokeMethod('setLoopMode', {'mode': mode.index});
-  }
-
-  Future<void> setShuffleModeEnabled(bool enabled) async {
-    _shuffleEnabled = enabled;
-    await _channel.invokeMethod('setShuffleMode', {'enabled': enabled});
-  }
-
-  Future<void> setSpeed(double speed) async {
-    _speed = speed;
-    await _channel.invokeMethod('setSpeed', {'speed': speed});
-  }
-
-  Future<void> dispose() async {
-    await _channel.invokeMethod('dispose');
-    _positionController.close();
-    _bufferedController.close();
-    _durationController.close();
-    _playingController.close();
-    _processingStateController.close();
-    _playbackEventController.close();
-  }
-}
-
 class AuraAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
-  final NativePlayer _player = NativePlayer();
+  final AndroidEqualizer androidEqualizer = AndroidEqualizer();
+  final AndroidBassBoost androidBassBoost = AndroidBassBoost();
+  final AndroidVirtualizer androidVirtualizer = AndroidVirtualizer();
+
+  late final AudioPlayer _player = AudioPlayer(
+    audioPipeline: AudioPipeline(
+      androidAudioEffects: [
+        androidEqualizer,
+        androidBassBoost,
+        androidVirtualizer,
+      ],
+    ),
+  );
+
   List<Song> _queue = [];
   int _currentIndex = 0;
-  bool _sessionIdSent = false;
   bool _isSkipping = false;
   final _errorController = StreamController<AudioError>.broadcast();
   final _queueChangeController = StreamController<void>.broadcast();
   void Function(int songId)? onSongChanged;
-  void Function(int sessionId)? onAudioSessionId;
 
   Stream<AudioError> get errorStream => _errorController.stream;
   Stream<void> get onQueueChanged => _queueChangeController.stream;
 
-  AuraAudioHandler() { _init(); }
+  AuraAudioHandler() {
+    _init();
+  }
 
   void _init() {
-    _player.playbackEventStream.listen((_) {
+    _player.playbackEventStream.listen((event) {
       playbackState.add(playbackState.value.copyWith(
         controls: [
           MediaControl.skipToPrevious,
           _player.playing ? MediaControl.pause : MediaControl.play,
           MediaControl.skipToNext,
         ],
-        systemActions: const { MediaAction.seek },
+        systemActions: const {MediaAction.seek},
         androidCompactActionIndices: const [0, 1, 2],
-        processingState: {
-          ProcessingState.idle:      AudioProcessingState.idle,
-          ProcessingState.loading:   AudioProcessingState.loading,
+        processingState: const {
+          ProcessingState.idle: AudioProcessingState.idle,
+          ProcessingState.loading: AudioProcessingState.loading,
           ProcessingState.buffering: AudioProcessingState.buffering,
-          ProcessingState.ready:     AudioProcessingState.ready,
+          ProcessingState.ready: AudioProcessingState.ready,
           ProcessingState.completed: AudioProcessingState.completed,
         }[_player.processingState]!,
         playing: _player.playing,
         updatePosition: _player.position,
-        bufferedPosition: _player.position,
+        bufferedPosition: _player.bufferedPosition,
         speed: _player.speed,
         queueIndex: _currentIndex,
       ));
     });
+
     _player.processingStateStream.listen((state) {
-      if (state == ProcessingState.ready && !_sessionIdSent) {
-        _sessionIdSent = true;
-        final sessionId = _player.androidAudioSessionId;
-        if (sessionId != 0) {
-          debugPrint('[AudioHandler] sessionId=$sessionId');
-          onAudioSessionId?.call(sessionId);
-        }
-      }
       if (state == ProcessingState.completed && !_isSkipping) skipToNext();
     });
   }
 
-  Stream<PositionData> get positionDataStream => _player.positionDataStream;
+  Stream<PositionData> get positionDataStream =>
+      _player.positionDataStream.map((pd) =>
+          PositionData(pd.position, pd.bufferedPosition, pd.duration));
+
   Stream<bool> get playingStream => _player.playingStream;
 
   Song? get currentSong => _queue.isNotEmpty ? _queue[_currentIndex] : null;
   List<Song> get songQueue => List.unmodifiable(_queue);
   int get currentIndex => _currentIndex;
-  NativePlayer get player => _player;
+  AudioPlayer get player => _player;
 
-  @override Future<void> play()  => _player.play();
-  @override Future<void> pause() => _player.pause();
-  @override Future<void> seek(Duration position) => _player.seek(position);
+  @override
+  Future<void> play() => _player.play();
+
+  @override
+  Future<void> pause() => _player.pause();
+
+  @override
+  Future<void> seek(Duration position) => _player.seek(position);
 
   @override
   Future<void> setRepeatMode(AudioServiceRepeatMode repeatMode) async {
     final m = {
-      AudioServiceRepeatMode.none:  LoopMode.off,
-      AudioServiceRepeatMode.one:   LoopMode.one,
-      AudioServiceRepeatMode.all:   LoopMode.all,
+      AudioServiceRepeatMode.none: LoopMode.off,
+      AudioServiceRepeatMode.one: LoopMode.one,
+      AudioServiceRepeatMode.all: LoopMode.all,
       AudioServiceRepeatMode.group: LoopMode.all,
     }[repeatMode] ?? LoopMode.off;
     await _player.setLoopMode(m);
@@ -262,14 +157,16 @@ class AuraAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   Future<void> playSong(Song song, {List<Song>? queue, int? index}) async {
     _queue = queue ?? [song];
     _currentIndex = index ?? _queue.indexOf(song);
-    if (_currentIndex < 0) { _currentIndex = 0; _queue.insert(0, song); }
+    if (_currentIndex < 0) {
+      _currentIndex = 0;
+      _queue.insert(0, song);
+    }
     _queueChangeController.add(null);
     await _loadCurrent();
   }
 
   Future<void> _loadCurrent() async {
     if (_queue.isEmpty) return;
-    _sessionIdSent = false;
     final s = _queue[_currentIndex];
     mediaItem.add(MediaItem(
       id: s.uri,
@@ -280,7 +177,7 @@ class AuraAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       artUri: s.albumArtUri != null ? Uri.parse(s.albumArtUri!) : null,
     ));
     try {
-      await _player.setAudioSource(s.uri);
+      await _player.setAudioSource(AudioSource.uri(Uri.parse(s.uri)));
       await _player.play();
       onSongChanged?.call(s.id);
     } catch (e) {
@@ -312,7 +209,8 @@ class AuraAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     _queueChangeController.add(null);
   }
 
-  Future<void> restoreQueue(List<Song> songs, int index, {bool notify = true}) async {
+  Future<void> restoreQueue(List<Song> songs, int index,
+      {bool notify = true}) async {
     if (songs.isEmpty) return;
     _queue = List.from(songs);
     _currentIndex = index.clamp(0, _queue.length - 1);
