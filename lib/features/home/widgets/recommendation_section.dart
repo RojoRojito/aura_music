@@ -162,7 +162,7 @@ class _RecommendationSectionState extends State<RecommendationSection>
     final scanner = context.read<MediaScanner>();
     final engine = context.read<RecommendationEngine>();
     final ctrl = context.read<PlayerController>();
-    final songs = await engine.topPicksAsSongs(scanner);
+    final songs = await engine.statsToSongs(statsList, scanner);
     final match = songs.where((s) => s.id == target.songId);
     if (match.isNotEmpty) {
       ctrl.playSong(match.first, queue: songs);

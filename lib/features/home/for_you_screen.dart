@@ -57,7 +57,7 @@ class ForYouScreen extends StatelessWidget {
     final engine = context.read<RecommendationEngine>();
     final scanner = context.read<MediaScanner>();
     final ctrl = context.read<PlayerController>();
-    final songs = await engine.topPicksAsSongs(scanner);
+    final songs = await engine.statsToSongs(engine.topPicks, scanner);
     if (songs.isNotEmpty) {
       ctrl.playSong(songs.first, queue: songs);
     }
@@ -85,7 +85,7 @@ class _SongListState extends State<_SongList> {
   Future<void> _loadSongs() async {
     final scanner = context.read<MediaScanner>();
     final engine = context.read<RecommendationEngine>();
-    final songs = await engine.topPicksAsSongs(scanner);
+    final songs = await engine.statsToSongs(engine.topPicks, scanner);
     if (mounted) setState(() { _songs = songs; _loading = false; });
   }
 

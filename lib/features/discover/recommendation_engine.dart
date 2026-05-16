@@ -45,9 +45,9 @@ class RecommendationEngine extends ChangeNotifier {
 
   Future<void> refresh() => compute();
 
-  Future<List<Song>> topPicksAsSongs(MediaScanner scanner) async {
+  Future<List<Song>> statsToSongs(List<SongStats> stats, MediaScanner scanner) async {
     final songs = <Song>[];
-    for (final stat in _topPicks) {
+    for (final stat in stats) {
       final song = await scanner.getSongById(stat.songId);
       if (song != null) songs.add(song);
     }
