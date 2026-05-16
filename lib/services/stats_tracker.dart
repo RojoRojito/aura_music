@@ -37,7 +37,7 @@ class StatsTracker {
     if (song != null) {
       _currentSongId = song.id;
       _currentTitle = song.title;
-      _currentArtist = song.artist ?? '';
+      _currentArtist = song.artist;
       _currentDuration = song.duration.toDouble();
       _isFavorite = favRepo.isFavorite(song.id);
     }
@@ -52,7 +52,7 @@ class StatsTracker {
     if (song != null) {
       _currentSongId = song.id;
       _currentTitle = song.title;
-      _currentArtist = song.artist ?? '';
+      _currentArtist = song.artist;
       _isFavorite = _favRepo?.isFavorite(songId) ?? false;
     }
 

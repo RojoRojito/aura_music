@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:on_audio_query/on_audio_query.dart';
@@ -6,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/models/song.dart';
 import '../../data/repositories/favorites_repository.dart';
+import '../../services/audio_handler.dart';
 import '../../services/equalizer_service.dart';
 import 'player_controller.dart';
 import '../equalizer/equalizer_screen.dart';
