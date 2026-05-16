@@ -23,6 +23,7 @@ class AuraAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   List<Song> _queue = [];
   int _currentIndex = 0;
   bool _sessionIdSent = false;
+  bool _isSkipping = false;
   final _errorController = StreamController<AudioError>.broadcast();
   final _queueChangeController = StreamController<void>.broadcast();
   void Function(int songId)? onSongChanged;
@@ -61,7 +62,7 @@ class AuraAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       if (state == ProcessingState.ready && !_sessionIdSent) {
         _checkAudioSessionId();
       }
-      if (state == ProcessingState.completed) skipToNext();
+      if (state == ProcessingState.completed && !_isSkipping) skipToNext();
     });
   }
 
@@ -69,7 +70,7 @@ class AuraAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     for (int attempt = 0; attempt < 10; attempt++) {
       await Future.delayed(const Duration(milliseconds: 500));
       try {
-        final sessionId = await _player.androidAudioSessionId;
+        final sessionId = _player.androidAudioSessionId;
         if (sessionId != null && sessionId != 0) {
           _sessionIdSent = true;
           debugPrint('[AudioHandler] sessionId=$sessionId en intento $attempt');
@@ -129,9 +130,23 @@ class AuraAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
   @override
   Future<void> skipToNext() async {
-    if (_currentIndex < _queue.length - 1) {
-      _currentIndex++;
-      await _loadCurrent();
+    if (_isSkipping) return;
+    _isSkipping = true;
+    try {
+      if (_queue.isEmpty) return;
+      final currentLoop = _player.loopMode;
+      if (currentLoop == LoopMode.one) {
+        await _player.seek(Duration.zero);
+        await _player.play();
+      } else if (_currentIndex < _queue.length - 1) {
+        _currentIndex++;
+        await _loadCurrent();
+      } else if (currentLoop == LoopMode.all) {
+        _currentIndex = 0;
+        await _loadCurrent();
+      }
+    } finally {
+      _isSkipping = false;
     }
   }
 
@@ -197,11 +212,11 @@ try {
     _queueChangeController.add(null);
   }
 
-  Future<void> restoreQueue(List<Song> songs, int index) async {
+  Future<void> restoreQueue(List<Song> songs, int index, {bool notify = true}) async {
     if (songs.isEmpty) return;
     _queue = List.from(songs);
     _currentIndex = index.clamp(0, _queue.length - 1);
-    _queueChangeController.add(null);
+    if (notify) _queueChangeController.add(null);
     await _loadCurrent();
   }
 }

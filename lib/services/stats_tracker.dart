@@ -1,7 +1,6 @@
 import 'dart:async';
 import '../data/repositories/stats_repository.dart';
 import '../data/repositories/favorites_repository.dart';
-import '../data/models/song.dart';
 import 'audio_handler.dart';
 
 class StatsTracker {
@@ -16,6 +15,7 @@ class StatsTracker {
   bool _isFavorite = false;
   StreamSubscription? _positionSub;
   StreamSubscription? _durationSub;
+  FavoritesRepository? _favRepo;
 
   StatsTracker({
     required this.statsRepository,
@@ -23,13 +23,7 @@ class StatsTracker {
   });
 
   Future<void> init(FavoritesRepository favRepo) async {
-    final originalCallback = audioHandler.onSongChanged;
-    audioHandler.onSongChanged = (songId) async {
-      await _onSongChanged(songId, favRepo);
-      if (originalCallback != null) {
-        originalCallback(songId);
-      }
-    };
+    _favRepo = favRepo;
 
     _positionSub = audioHandler.player.positionStream.listen((pos) {
       _listenedSeconds = pos.inSeconds.toDouble();
@@ -38,9 +32,18 @@ class StatsTracker {
     _durationSub = audioHandler.player.durationStream.listen((dur) {
       _currentDuration = dur?.inSeconds.toDouble() ?? 0;
     });
+
+    final song = audioHandler.currentSong;
+    if (song != null) {
+      _currentSongId = song.id;
+      _currentTitle = song.title;
+      _currentArtist = song.artist ?? '';
+      _currentDuration = song.duration.toDouble();
+      _isFavorite = favRepo.isFavorite(song.id);
+    }
   }
 
-  Future<void> _onSongChanged(int songId, FavoritesRepository favRepo) async {
+  Future<void> handleSongChanged(int songId) async {
     if (_currentSongId != null && _currentSongId != songId) {
       await _flushCurrent();
     }
@@ -50,7 +53,7 @@ class StatsTracker {
       _currentSongId = song.id;
       _currentTitle = song.title;
       _currentArtist = song.artist ?? '';
-      _isFavorite = favRepo.isFavorite(songId);
+      _isFavorite = _favRepo?.isFavorite(songId) ?? false;
     }
 
     _listenedSeconds = 0;

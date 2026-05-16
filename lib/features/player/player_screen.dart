@@ -6,7 +6,6 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/models/song.dart';
 import '../../data/repositories/favorites_repository.dart';
-import '../../services/audio_handler.dart';
 import '../../services/equalizer_service.dart';
 import 'player_controller.dart';
 import '../equalizer/equalizer_screen.dart';
@@ -18,9 +17,6 @@ class PlayerScreen extends StatefulWidget {
 }
 
 class _PlayerScreenState extends State<PlayerScreen> {
-  LoopMode _loop = LoopMode.off;
-  bool _shuffle = false;
-
   @override
   Widget build(BuildContext context) {
     final ctrl = context.watch<PlayerController>();
@@ -173,10 +169,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
     child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
       IconButton(
         icon: Icon(Icons.shuffle,
-            color: _shuffle ? AuraColors.primary : AuraColors.textMuted),
+            color: ctrl.shuffleEnabled ? AuraColors.primary : AuraColors.textMuted),
         onPressed: () {
-          setState(() => _shuffle = !_shuffle);
-          ctrl.setShuffle(_shuffle);
+          ctrl.setShuffle(!ctrl.shuffleEnabled);
         }),
       IconButton(
         icon: const Icon(Icons.queue_music, color: AuraColors.textMuted),
@@ -210,18 +205,20 @@ class _PlayerScreenState extends State<PlayerScreen> {
         }),
       IconButton(
         icon: Icon(
-          _loop == LoopMode.off ? Icons.repeat
-            : _loop == LoopMode.all ? Icons.repeat_on_outlined
+          ctrl.loopMode == LoopMode.off ? Icons.repeat
+            : ctrl.loopMode == LoopMode.all ? Icons.repeat_on_outlined
             : Icons.repeat_one_on_outlined,
-          color: _loop != LoopMode.off ? AuraColors.primary : AuraColors.textMuted),
+          color: ctrl.loopMode != LoopMode.off ? AuraColors.primary : AuraColors.textMuted),
         onPressed: _cycleRepeat),
     ]),
   );
 
   void _cycleRepeat() {
-    setState(() => _loop = _loop == LoopMode.off ? LoopMode.all
-        : _loop == LoopMode.all ? LoopMode.one : LoopMode.off);
-    context.read<PlayerController>().setRepeat(_loop);
+    final ctrl = context.read<PlayerController>();
+    final current = ctrl.loopMode;
+    final next = current == LoopMode.off ? LoopMode.all
+        : current == LoopMode.all ? LoopMode.one : LoopMode.off;
+    ctrl.setRepeat(next);
   }
 
   void _showOptions(BuildContext ctx, PlayerController ctrl) =>

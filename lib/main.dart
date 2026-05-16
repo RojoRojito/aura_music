@@ -72,6 +72,7 @@ Future<void> main() async {
 
   RecommendationEngine? recEngineRef;
   audioHandler.onSongChanged = (songId) {
+    statsTracker.handleSongChanged(songId);
     equalizerService.loadForSong(songId);
     if (settingsController.dynamicThemeEnabled) {
       DynamicThemeService.instance.updateFromAlbumArt(songId);

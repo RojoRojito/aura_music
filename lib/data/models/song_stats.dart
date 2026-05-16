@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart';
-
 class SongStats {
   final int songId;
   final String title;
@@ -10,6 +8,7 @@ class SongStats {
   final double totalDurationSeconds;
   final bool isFavorite;
   final DateTime? lastPlayed;
+  final double score;
 
   SongStats({
     required this.songId,
@@ -21,6 +20,7 @@ class SongStats {
     this.totalDurationSeconds = 0.0,
     this.isFavorite = false,
     this.lastPlayed,
+    this.score = 0.0,
   });
 
   factory SongStats.fromMap(Map<String, dynamic> map) {
@@ -103,6 +103,7 @@ class SongStats {
       totalDurationSeconds: totalDurationSeconds ?? this.totalDurationSeconds,
       isFavorite: isFavorite ?? this.isFavorite,
       lastPlayed: lastPlayed ?? this.lastPlayed,
+      score: score ?? this.score,
     );
   }
 }

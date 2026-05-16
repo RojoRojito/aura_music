@@ -23,12 +23,12 @@ class RecommendationEngine extends ChangeNotifier {
 
     _allStats = await statsRepository.getAllStats();
 
-    final scored = _allStats.map((s) => s.copyWith()).toList();
+    final scored = _allStats.map((s) => s.copyWith(score: s.computeScore())).toList();
 
     _topPicks = scored
         .where((s) => s.playCount > 0 || s.isFavorite)
         .toList()
-      ..sort((a, b) => b.computeScore().compareTo(a.computeScore()));
+      ..sort((a, b) => b.score.compareTo(a.score));
     _topPicks = _topPicks.take(30).toList();
 
     _mostPlayed = scored

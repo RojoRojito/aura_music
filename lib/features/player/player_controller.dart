@@ -13,6 +13,8 @@ class PlayerController extends ChangeNotifier {
   final StatePersistenceService _persistence = StatePersistenceService();
   StreamSubscription<void>? _sleepTimerSub;
   StreamSubscription<void>? _queueChangeSub;
+  StreamSubscription<bool>? _playingSub;
+  bool _isPlaying = false;
   bool _initialized = false;
 
   PlayerController(this._h);
@@ -24,6 +26,7 @@ class PlayerController extends ChangeNotifier {
     await _persistence.init();
     _setupSleepTimer(settings);
     _setupQueuePersistence();
+    _setupPlayingListener();
     _restoreQueueIfNeeded();
     
     if (settings.playbackSpeed != 1.0) {
@@ -46,16 +49,26 @@ class PlayerController extends ChangeNotifier {
     });
   }
 
+  void _setupPlayingListener() {
+    _playingSub?.cancel();
+    _playingSub = _h.playingStream.listen((playing) {
+      _isPlaying = playing;
+      notifyListeners();
+    });
+  }
+
   Future<void> _restoreQueueIfNeeded() async {
     final state = await _persistence.restoreQueueState();
     if (state != null && state.queue.isNotEmpty) {
-      await _h.restoreQueue(state.queue, state.currentIndex);
+      await _h.restoreQueue(state.queue, state.currentIndex, notify: false);
       await _h.seek(state.position);
     }
   }
 
   Song? get currentSong        => _h.currentSong;
-  bool get isPlaying           => _h.player.playing;
+  bool get isPlaying           => _isPlaying;
+  LoopMode get loopMode        => _h.player.loopMode;
+  bool get shuffleEnabled      => _h.player.shuffleModeEnabled;
   Stream<PositionData> get pos => _h.positionDataStream;
   List<Song> get queue         => _h.songQueue;
   int get currentIndex         => _h.currentIndex;
@@ -68,8 +81,11 @@ class PlayerController extends ChangeNotifier {
   }
 
   Future<void> togglePlay() async {
-    isPlaying ? await _h.pause() : await _h.play();
-    notifyListeners();
+    if (_isPlaying) {
+      await _h.pause();
+    } else {
+      await _h.play();
+    }
   }
 
   Future<void> next() async {
@@ -81,17 +97,18 @@ class PlayerController extends ChangeNotifier {
     await _h.skipToPrevious();
     notifyListeners();
   }
-  Future<void> seek(Duration p)      => _h.seek(p);
-  Future<void> addToQueue(Song s)    => _h.addToQueue(s);
-  Future<void> playNext(Song s)      => _h.playNext(s);
+  Future<void> seek(Duration p)    => _h.seek(p);
+  Future<void> addToQueue(Song s)   => _h.addToQueue(s);
+  Future<void> playNext(Song s)     => _h.playNext(s);
   Future<void> setRepeat(LoopMode m) => _h.setRepeatLoopMode(m);
-  Future<void> setShuffle(bool e)    => _h.setShuffleEnabled(e);
-  Future<void> setSpeed(double s)    => _h.setSpeed(s);
+  Future<void> setShuffle(bool e)  => _h.setShuffleEnabled(e);
+  Future<void> setSpeed(double s)   => _h.setSpeed(s);
 
   @override
   void dispose() {
     _sleepTimerSub?.cancel();
     _queueChangeSub?.cancel();
+    _playingSub?.cancel();
     super.dispose();
   }
 }
