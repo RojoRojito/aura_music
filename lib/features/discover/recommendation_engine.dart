@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
+import '../../data/models/song.dart';
 import '../../data/models/song_stats.dart';
 import '../../data/repositories/stats_repository.dart';
+import '../../services/media_scanner.dart';
 
 class RecommendationEngine extends ChangeNotifier {
   final StatsRepository statsRepository;
@@ -42,4 +44,13 @@ class RecommendationEngine extends ChangeNotifier {
   }
 
   Future<void> refresh() => compute();
+
+  Future<List<Song>> topPicksAsSongs(MediaScanner scanner) async {
+    final songs = <Song>[];
+    for (final stat in _topPicks) {
+      final song = await scanner.getSongById(stat.songId);
+      if (song != null) songs.add(song);
+    }
+    return songs;
+  }
 }

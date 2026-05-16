@@ -8,6 +8,7 @@ import '../../data/models/song.dart';
 import '../player/player_controller.dart';
 import 'library_controller.dart';
 import '../../widgets/add_to_playlist_sheet.dart';
+import '../home/widgets/recommendation_section.dart';
 
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
@@ -100,6 +101,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
       case LibraryStatus.initial:
       case LibraryStatus.loaded:
         return Column(children: [
+          const RecommendationSection(),
+          const SizedBox(height: 24),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
             child: Row(children: [

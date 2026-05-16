@@ -65,6 +65,16 @@ class MediaScanner {
     return r.map(_map).toList();
   }
 
+  Future<Song?> getSongById(int songId) async {
+    final songs = await _q.querySongs(
+      sortType: SongSortType.TITLE,
+      orderType: OrderType.ASC_OR_SMALLER,
+      uriType: UriType.EXTERNAL,
+    );
+    final match = songs.where((s) => s.id == songId);
+    return match.isNotEmpty ? _map(match.first) : null;
+  }
+
   Song _map(SongModel s) => Song(
     id: s.id,
     title: s.title,
