@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:just_audio/just_audio.dart';
 import '../../data/models/song.dart';
 import '../../services/audio_handler.dart';
 import '../../services/dynamic_theme_service.dart';
