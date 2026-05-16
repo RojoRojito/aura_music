@@ -170,6 +170,7 @@ class AuraAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
   Future<void> _loadCurrent() async {
     if (_queue.isEmpty) return;
+    _sessionIdSent = false;
     final s = _queue[_currentIndex];
     mediaItem.add(MediaItem(
       id: s.uri,
