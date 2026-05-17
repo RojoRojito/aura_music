@@ -54,9 +54,12 @@ Future<void> main() async {
   }
 
   final equalizerService = EqualizerService(eqRepository);
+  await equalizerService.loadGlobal();
 
   final playerController = PlayerController(audioHandler);
   await playerController.init(settingsController);
+
+  final themeService = DynamicThemeService.instance;
 
   final statsRepository = StatsRepository.instance;
   await statsRepository.clearOldEvents(keepDays: 30);
@@ -72,9 +75,13 @@ Future<void> main() async {
   RecommendationEngine? recEngineRef;
   audioHandler.onSongChanged = (songId) {
     statsTracker.handleSongChanged(songId);
-    equalizerService.loadForSong(songId);
     if (settingsController.dynamicThemeEnabled) {
-      DynamicThemeService.instance.updateFromAlbumArt(songId);
+      final song = audioHandler.currentSong;
+      themeService.updateFromAlbumArt(
+        songId,
+        songTitle: song?.title,
+        songArtist: song?.artist,
+      );
     }
     Future.delayed(const Duration(seconds: 5), () {
       recEngineRef?.refresh();
@@ -104,6 +111,7 @@ Future<void> main() async {
       ChangeNotifierProvider<EqRepository>(create: (_) => eqRepository),
       ChangeNotifierProvider<EqualizerService>.value(value: equalizerService),
       ChangeNotifierProvider.value(value: settingsController),
+      ChangeNotifierProvider.value(value: themeService),
       Provider<StatsRepository>.value(value: statsRepository),
       ChangeNotifierProvider<RecommendationEngine>.value(value: recommendationEngine),
       Provider<StatsTracker>.value(value: statsTracker),

@@ -30,40 +30,29 @@ class _ArtistsScreenState extends State<ArtistsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final bg = AuraColors.backgroundOf(context);
-    final txt = AuraColors.textOf(context);
     final txtMuted = AuraColors.textMutedOf(context);
-    return Scaffold(
-      backgroundColor: bg,
-      appBar: AppBar(
-        backgroundColor: bg,
-        elevation: 0,
-        title: Text('Artistas', style: TextStyle(
-            color: txt, fontWeight: FontWeight.bold, fontSize: 22)),
-      ),
-      body: _loading
+    return _loading
         ? const AuraLoadingIndicator()
         : _artists.isEmpty
-          ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Icon(Icons.person_outline, color: txtMuted, size: 64),
-              const SizedBox(height: 16),
-              Text('No hay artistas', style: TextStyle(color: txtMuted, fontSize: 16)),
-              const SizedBox(height: 8),
-              Text('Escanea tu biblioteca para encontrar artistas',
-                  style: TextStyle(color: txtMuted, fontSize: 13)),
-              const SizedBox(height: 24),
-              ElevatedButton.icon(
-                onPressed: _load,
-                icon: const Icon(Icons.refresh),
-                label: const Text('Escaneear'),
-                style: ElevatedButton.styleFrom(backgroundColor: AuraColors.primary),
-              ),
-            ]))
-          : ListView.builder(
-              padding: const EdgeInsets.only(bottom: 160),
-              itemCount: _artists.length,
-              itemBuilder: (_, i) => _ArtistTile(artist: _artists[i])),
-    );
+            ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Icon(Icons.person_outline, color: txtMuted, size: 64),
+                const SizedBox(height: 16),
+                Text('No hay artistas', style: TextStyle(color: txtMuted, fontSize: 16)),
+                const SizedBox(height: 8),
+                Text('Escanea tu biblioteca para encontrar artistas',
+                    style: TextStyle(color: txtMuted, fontSize: 13)),
+                const SizedBox(height: 24),
+                ElevatedButton.icon(
+                  onPressed: _load,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Escaneear'),
+                  style: ElevatedButton.styleFrom(backgroundColor: AuraColors.primary),
+                ),
+              ]))
+            : ListView.builder(
+                padding: const EdgeInsets.only(bottom: 160),
+                itemCount: _artists.length,
+                itemBuilder: (_, i) => _ArtistTile(artist: _artists[i]));
   }
 }
 

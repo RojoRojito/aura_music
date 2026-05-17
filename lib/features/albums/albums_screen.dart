@@ -28,43 +28,32 @@ class _AlbumsScreenState extends State<AlbumsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final bg = AuraColors.backgroundOf(context);
-    final txt = AuraColors.textOf(context);
     final txtMuted = AuraColors.textMutedOf(context);
-    return Scaffold(
-      backgroundColor: bg,
-      appBar: AppBar(
-        backgroundColor: bg,
-        elevation: 0,
-        title: Text('Albums', style: TextStyle(
-            color: txt, fontWeight: FontWeight.bold, fontSize: 22)),
-      ),
-      body: _loading
+    return _loading
         ? const AuraLoadingIndicator()
         : _albums.isEmpty
-          ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Icon(Icons.album_outlined, color: txtMuted, size: 64),
-              const SizedBox(height: 16),
-              Text('No hay albums', style: TextStyle(color: txtMuted, fontSize: 16)),
-              const SizedBox(height: 8),
-              Text('Escanea tu biblioteca para encontrar albums',
-                  style: TextStyle(color: txtMuted, fontSize: 13)),
-              const SizedBox(height: 24),
-              ElevatedButton.icon(
-                onPressed: _load,
-                icon: const Icon(Icons.refresh),
-                label: const Text('Escaneear'),
-                style: ElevatedButton.styleFrom(backgroundColor: AuraColors.primary),
-              ),
-            ]))
-          : GridView.builder(
-              padding: const EdgeInsets.all(12),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2, crossAxisSpacing: 10,
-                mainAxisSpacing: 10, childAspectRatio: 0.85),
-              itemCount: _albums.length,
-              itemBuilder: (_, i) => _AlbumCard(album: _albums[i])),
-    );
+            ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Icon(Icons.album_outlined, color: txtMuted, size: 64),
+                const SizedBox(height: 16),
+                Text('No hay albums', style: TextStyle(color: txtMuted, fontSize: 16)),
+                const SizedBox(height: 8),
+                Text('Escanea tu biblioteca para encontrar albums',
+                    style: TextStyle(color: txtMuted, fontSize: 13)),
+                const SizedBox(height: 24),
+                ElevatedButton.icon(
+                  onPressed: _load,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Escaneear'),
+                  style: ElevatedButton.styleFrom(backgroundColor: AuraColors.primary),
+                ),
+              ]))
+            : GridView.builder(
+                padding: const EdgeInsets.all(12),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2, crossAxisSpacing: 10,
+                  mainAxisSpacing: 10, childAspectRatio: 0.85),
+                itemCount: _albums.length,
+                itemBuilder: (_, i) => _AlbumCard(album: _albums[i]));
   }
 }
 

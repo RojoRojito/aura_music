@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
 import '../database/app_database.dart';
 import '../models/eq_config.dart';
@@ -7,6 +9,33 @@ class EqRepository extends ChangeNotifier {
   final Map<int, EqConfig> _cache = {};
 
   Future<Database> get database => AppDatabase.instance.database;
+
+  // ─── Global EQ (SharedPreferences) ────────────────────────
+
+  Future<EqConfig> loadGlobal() async {
+    final prefs = await SharedPreferences.getInstance();
+    final json = prefs.getString('eq_global_config');
+    if (json == null) return EqConfig.flat();
+    try {
+      final map = jsonDecode(json) as Map<String, dynamic>;
+      return EqConfig.fromMap(map);
+    } catch (e) {
+      debugPrint('[EQ_REPO] loadGlobal parse error: $e');
+      return EqConfig.flat();
+    }
+  }
+
+  Future<void> saveGlobal(EqConfig config) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('eq_global_config', jsonEncode(config.toMap()));
+  }
+
+  Future<void> resetGlobal() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('eq_global_config');
+  }
+
+  // ─── Per-song EQ (legacy, kept for DB migration compat) ──
 
   Future<EqConfig?> loadForSong(int songId) async {
     if (_cache.containsKey(songId)) return _cache[songId]!;

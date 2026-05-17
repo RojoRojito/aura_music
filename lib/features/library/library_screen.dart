@@ -5,6 +5,7 @@ import 'package:on_audio_query/on_audio_query.dart';
 import 'package:provider/provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/tokens/tokens.dart';
 import '../../data/models/song.dart';
 import '../player/player_controller.dart';
 import 'library_controller.dart';
@@ -27,51 +28,77 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final bg = AuraColors.backgroundOf(context);
+    return Consumer<LibraryController>(builder: (_, ctrl, __) {
+      return Column(
+        children: [
+          _buildSearchBar(ctrl),
+          Expanded(child: _buildBody(ctrl)),
+        ],
+      );
+    });
+  }
+
+  Widget _buildSearchBar(LibraryController ctrl) {
     final txt = AuraColors.textOf(context);
     final txtMuted = AuraColors.textMutedOf(context);
-    return Consumer<LibraryController>(builder: (_, ctrl, __) => Scaffold(
-      backgroundColor: bg,
-      appBar: AppBar(
-        backgroundColor: bg,
-        elevation: 0,
-        title: _searching
-          ? TextField(
-              controller: _searchCtrl, autofocus: true,
-              style: TextStyle(color: txt),
-              decoration: InputDecoration(
-                hintText: 'Buscar canciones...',
-                hintStyle: TextStyle(color: txtMuted),
-                border: InputBorder.none),
-              onChanged: (q) {
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AuraSpacing.lg,
+        vertical: AuraSpacing.sm,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _searching
+                ? TextField(
+                    controller: _searchCtrl,
+                    autofocus: true,
+                    style: TextStyle(color: txt),
+                    decoration: InputDecoration(
+                      hintText: 'Buscar canciones...',
+                      hintStyle: TextStyle(color: txtMuted),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AuraRadius.md),
+                      ),
+                      filled: true,
+                      fillColor: AuraColors.surfaceHigh,
+                    ),
+                    onChanged: (q) {
+                      _debounce?.cancel();
+                      _debounce = Timer(const Duration(milliseconds: 300), () {
+                        ctrl.search(q);
+                      });
+                    },
+                  )
+                : const SizedBox.shrink(),
+          ),
+          if (!_searching) ...[
+            IconButton(
+              icon: const Icon(Icons.search),
+              color: txtMuted,
+              onPressed: () => setState(() => _searching = true),
+            ),
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              color: txtMuted,
+              onPressed: ctrl.scanLibrary,
+            ),
+          ],
+          if (_searching)
+            IconButton(
+              icon: const Icon(Icons.close),
+              color: txtMuted,
+              onPressed: () {
+                setState(() => _searching = false);
                 _debounce?.cancel();
-                _debounce = Timer(const Duration(milliseconds: 300), () {
-                  ctrl.search(q);
-                });
-              })
-          : Text('Canciones', style: TextStyle(
-              color: txt, fontWeight: FontWeight.bold, fontSize: 22)),
-        actions: [
-          IconButton(
-            icon: Icon(_searching ? Icons.close : Icons.search, color: txtMuted),
-            onPressed: () {
-              setState(() => _searching = !_searching);
-              if (!_searching) { _debounce?.cancel(); _searchCtrl.clear(); ctrl.search(''); }
-            }),
-          IconButton(
-            icon: Icon(Icons.refresh, color: txtMuted),
-            onPressed: ctrl.scanLibrary),
+                _searchCtrl.clear();
+                ctrl.search('');
+              },
+            ),
         ],
       ),
-      body: _buildBody(ctrl),
-      floatingActionButton: ctrl.songs.isNotEmpty
-        ? FloatingActionButton.extended(
-            onPressed: ctrl.shuffleAll,
-            backgroundColor: AuraColors.primary,
-            icon: const Icon(Icons.shuffle),
-            label: const Text('Aleatorio'))
-        : null,
-    ));
+    );
   }
 
   Widget _buildBody(LibraryController ctrl) {

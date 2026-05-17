@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import '../data/models/eq_config.dart';
@@ -13,10 +14,8 @@ class EqualizerService extends ChangeNotifier {
   static const int bandCount = 12;
 
   EqConfig? _currentConfig;
-  int? _currentSongId;
   int _nativeBandCount = 5;
   List<int> _nativeBandFrequencies = [];
-  List<int> _bandMapping = []; // _bandMapping[uiBand] = nativeBand
   bool _isAvailable = false;
 
   int get nativeBandCount => _nativeBandCount;
@@ -27,7 +26,9 @@ class EqualizerService extends ChangeNotifier {
 
   EqConfig? get currentConfig => _currentConfig;
   bool get isEnabled => _currentConfig?.enabled ?? false;
-  int? get currentSongId => _currentSongId;
+  bool get limiterEnabled => _currentConfig?.limiterEnabled ?? false;
+  bool get loudnessEnabled => _currentConfig?.loudnessEnabled ?? false;
+  double get loudness => _currentConfig?.loudness ?? 0.0;
 
   Future<void> initSession(int sessionId) async {
     debugPrint('[EQ] initSession recibido: sessionId=$sessionId');
@@ -38,10 +39,9 @@ class EqualizerService extends ChangeNotifier {
       if (freqsRaw is List) {
         _nativeBandFrequencies = freqsRaw.map((e) => (e as num).toInt()).toList();
       }
-      _buildBandMapping();
       _isAvailable = true;
       debugPrint('[EQ] initSession OK, nativeBandCount=$_nativeBandCount, '
-          'nativeFreqs=$_nativeBandFrequencies, mapping=$_bandMapping');
+          'nativeFreqs=$_nativeBandFrequencies');
       if (_currentConfig != null) {
         await _applyFullConfig(_currentConfig!);
         debugPrint('[EQ] config reaplicada');
@@ -53,46 +53,44 @@ class EqualizerService extends ChangeNotifier {
     notifyListeners();
   }
 
-  void _buildBandMapping() {
-    // Map each 12-band UI frequency to closest native band
-    _bandMapping = List.generate(bandCount, (uiIdx) {
-      final uiFreq = bandFrequencies[uiIdx];
-      var bestIdx = 0;
-      var bestDiff = 999999999;
-      for (var nIdx = 0; nIdx < _nativeBandFrequencies.length; nIdx++) {
-        final diff = (uiFreq - _nativeBandFrequencies[nIdx]).abs();
-        if (diff < bestDiff) {
-          bestDiff = diff;
-          bestIdx = nIdx;
-        }
-      }
-      return bestIdx;
-    });
+  Future<void> loadGlobal() async {
+    debugPrint('[EQ] loadGlobal');
+    _currentConfig = await _eqRepository.loadGlobal();
+    debugPrint('[EQ] Global config loaded: enabled=${_currentConfig!.enabled}, '
+        'preset=${_currentConfig!.presetName}');
+    await _applyFullConfig(_currentConfig!);
+    notifyListeners();
   }
 
-  /// Aggregate 12 UI band gains into native band gains
-  List<double> _mapToNativeBands(List<double> uiGains) {
-    final nativeGains = List.filled(_nativeBandCount, 0.0);
-    final nativeCounts = List.filled(_nativeBandCount, 0);
-    for (var i = 0; i < bandCount && i < uiGains.length; i++) {
-      final nIdx = _bandMapping[i];
-      nativeGains[nIdx] += uiGains[i];
-      nativeCounts[nIdx]++;
-    }
-    for (var i = 0; i < _nativeBandCount; i++) {
-      if (nativeCounts[i] > 0) nativeGains[i] /= nativeCounts[i];
+  Future<void> saveGlobal() async {
+    if (_currentConfig == null) return;
+    await _eqRepository.saveGlobal(_currentConfig!);
+  }
+
+  List<double> _mapToNativeBands(List<double> uiGains, List<int> uiFreqs) {
+    final nativeGains = List<double>.filled(_nativeBandCount, 0.0);
+    for (var nIdx = 0; nIdx < _nativeBandCount; nIdx++) {
+      final nativeFreq = _nativeBandFrequencies[nIdx].toDouble();
+      nativeGains[nIdx] = _interpolateGain(nativeFreq, uiFreqs, uiGains);
     }
     return nativeGains;
   }
 
-  Future<void> loadForSong(int songId) async {
-    debugPrint('[EQ] loadForSong($songId)');
-    _currentSongId = songId;
-    final config = await _eqRepository.loadForSong(songId);
-    _currentConfig = config ?? EqConfig.flat(songId: songId);
-    debugPrint('[EQ] Config loaded: enabled=${_currentConfig!.enabled}, preset=${_currentConfig!.presetName}');
-    await _applyFullConfig(_currentConfig!);
-    notifyListeners();
+  double _interpolateGain(double targetFreq, List<int> freqs, List<double> gains) {
+    if (freqs.isEmpty || gains.isEmpty) return 0.0;
+    if (targetFreq <= freqs.first) return gains.first;
+    if (targetFreq >= freqs.last) return gains.last;
+
+    for (var i = 0; i < freqs.length - 1; i++) {
+      if (freqs[i] <= targetFreq && freqs[i + 1] >= targetFreq) {
+        final logTarget = log(targetFreq);
+        final logLow = log(freqs[i].toDouble());
+        final logHigh = log(freqs[i + 1].toDouble());
+        final t = (logTarget - logLow) / (logHigh - logLow);
+        return gains[i] + t * (gains[i + 1] - gains[i]);
+      }
+    }
+    return 0.0;
   }
 
   Future<void> _applyFullConfig(EqConfig config) async {
@@ -100,7 +98,8 @@ class EqualizerService extends ChangeNotifier {
       debugPrint('[EQ] _applyFullConfig: enabled=${config.enabled}, nativeBands=$_nativeBandCount');
       await _channel.invokeMethod("setEnabled", {"enabled": config.enabled});
 
-      final nativeGains = _mapToNativeBands(config.bandGains);
+      // Map 12 UI bands to native bands using log interpolation
+      final nativeGains = _mapToNativeBands(config.bandGains, bandFrequencies);
       debugPrint('[EQ] mapped gains: ui=${config.bandGains} → native=$nativeGains');
       for (var i = 0; i < _nativeBandCount; i++) {
         await _channel.invokeMethod("setBandGain", {
@@ -108,8 +107,30 @@ class EqualizerService extends ChangeNotifier {
           "gainDb": nativeGains[i],
         });
       }
+
       await _channel.invokeMethod("setBassBoost", {"gainDb": config.bassBoost});
       await _channel.invokeMethod("setVirtualizer", {"strength": config.virtualizer});
+
+      // Loudness
+      await setLoudness(config.loudness);
+      await setLoudnessEnabled(config.loudnessEnabled);
+
+      // Limiter
+      try {
+        await setLimiterEnabled(config.limiterEnabled);
+        if (config.limiterEnabled) {
+          await setLimiterParams(
+            threshold: config.limiterThreshold,
+            ratio: config.limiterRatio,
+            attack: config.limiterAttack,
+            release: config.limiterRelease,
+            postGain: config.limiterPostGain,
+          );
+        }
+      } catch (e) {
+        debugPrint('[EQ] Limiter not available (API < 28?): $e');
+      }
+
       debugPrint('[EQ] Full config applied successfully');
     } catch (e) {
       debugPrint('[EQ] _applyFullConfig ERROR: $e');
@@ -118,8 +139,7 @@ class EqualizerService extends ChangeNotifier {
 
   Future<void> setBandGain(int index, double gainDb) async {
     if (_currentConfig == null) {
-      if (_currentSongId == null) return;
-      _currentConfig = EqConfig.flat(songId: _currentSongId!);
+      _currentConfig = EqConfig.flat();
     }
     final clampedGain = gainDb.clamp(-12.0, 12.0);
     final newBands = List<double>.from(_currentConfig!.bandGains);
@@ -127,40 +147,26 @@ class EqualizerService extends ChangeNotifier {
 
     _currentConfig = _currentConfig!.copyWith(bandGains: newBands, presetName: null);
 
-    // Recalculate the native band this UI band maps to
-    if (index < _bandMapping.length) {
-      final nIdx = _bandMapping[index];
-      // Average all UI bands that map to this native band
-      var sum = 0.0;
-      var count = 0;
-      for (var i = 0; i < bandCount; i++) {
-        if (_bandMapping[i] == nIdx && i < newBands.length) {
-          sum += newBands[i];
-          count++;
-        }
-      }
-      final nativeGain = count > 0 ? sum / count : 0.0;
-      try {
-        debugPrint('[EQ] setBandGain ui=$index → native=$nIdx, gain=$nativeGain');
+    // Apply via log interpolation
+    final nativeGains = _mapToNativeBands(newBands, bandFrequencies);
+    try {
+      for (var i = 0; i < _nativeBandCount; i++) {
         await _channel.invokeMethod("setBandGain", {
-          "bandIndex": nIdx,
-          "gainDb": nativeGain,
+          "bandIndex": i,
+          "gainDb": nativeGains[i],
         });
-      } catch (e) {
-        debugPrint('[EQ] setBandGain ERROR: $e');
       }
+    } catch (e) {
+      debugPrint('[EQ] setBandGain ERROR: $e');
     }
 
-    if (_currentSongId != null) {
-      await _eqRepository.saveForSong(_currentConfig!);
-    }
+    await saveGlobal();
     notifyListeners();
   }
 
   Future<void> setBassBoost(double gainDb) async {
     if (_currentConfig == null) {
-      if (_currentSongId == null) return;
-      _currentConfig = EqConfig.flat(songId: _currentSongId!);
+      _currentConfig = EqConfig.flat();
     }
     final clampedGain = gainDb.clamp(0.0, 15.0);
     _currentConfig = _currentConfig!.copyWith(bassBoost: clampedGain);
@@ -172,16 +178,13 @@ class EqualizerService extends ChangeNotifier {
       debugPrint('[EQ] setBassBoost ERROR: $e');
     }
 
-    if (_currentSongId != null) {
-      await _eqRepository.saveForSong(_currentConfig!);
-    }
+    await saveGlobal();
     notifyListeners();
   }
 
   Future<void> setVirtualizer(double strength) async {
     if (_currentConfig == null) {
-      if (_currentSongId == null) return;
-      _currentConfig = EqConfig.flat(songId: _currentSongId!);
+      _currentConfig = EqConfig.flat();
     }
     final clampedStrength = strength.clamp(0.0, 1.0);
     _currentConfig = _currentConfig!.copyWith(virtualizer: clampedStrength);
@@ -193,58 +196,144 @@ class EqualizerService extends ChangeNotifier {
       debugPrint('[EQ] setVirtualizer ERROR: $e');
     }
 
-    if (_currentSongId != null) {
-      await _eqRepository.saveForSong(_currentConfig!);
-    }
+    await saveGlobal();
     notifyListeners();
   }
 
   Future<void> toggleEnabled() async {
-    debugPrint('[EQ] toggleEnabled called, currentConfig=${_currentConfig?.enabled}, songId=$_currentSongId');
+    debugPrint('[EQ] toggleEnabled called, current=${_currentConfig?.enabled}');
     if (_currentConfig == null) {
-      if (_currentSongId == null) {
-        debugPrint('[EQ] toggleEnabled: no songId, returning');
-        return;
-      }
-      _currentConfig = EqConfig.flat(songId: _currentSongId!);
+      _currentConfig = EqConfig.flat();
     }
     final newEnabled = !_currentConfig!.enabled;
     _currentConfig = _currentConfig!.copyWith(enabled: newEnabled);
     debugPrint('[EQ] newEnabled = $newEnabled, calling _applyFullConfig');
 
     await _applyFullConfig(_currentConfig!);
-
-    if (_currentSongId != null) {
-      await _eqRepository.saveForSong(_currentConfig!);
-    }
+    await saveGlobal();
     notifyListeners();
   }
 
   Future<void> applyPreset(String name) async {
     if (_currentConfig == null) return;
-    final preset = EqConfig.presets[name];
-    if (preset == null) return;
+    final curve = EqConfig.presetCurves[name];
+    if (curve == null) return;
+
+    // Convert frequency→gain map to 12-band list via interpolation
+    final sortedFreqs = curve.keys.toList()..sort();
+    final sortedGains = sortedFreqs.map((f) => curve[f]!.toDouble()).toList();
+    final newBands = <double>[];
+    for (final freq in bandFrequencies) {
+      newBands.add(_interpolateGain(freq.toDouble(), sortedFreqs, sortedGains));
+    }
 
     _currentConfig = _currentConfig!.copyWith(
-      bandGains: List<double>.from(preset),
+      bandGains: newBands,
       bassBoost: 0.0,
       presetName: name,
     );
 
     await _applyFullConfig(_currentConfig!);
-
-    if (_currentSongId != null) {
-      await _eqRepository.saveForSong(_currentConfig!);
-    }
+    await saveGlobal();
     notifyListeners();
   }
 
-  Future<void> resetSong() async {
-    if (_currentSongId == null) return;
-    _currentConfig = EqConfig.flat(songId: _currentSongId!);
+  Future<void> setLoudness(double db) async {
+    final clamped = db.clamp(0.0, 10.0);
+    try {
+      await _channel.invokeMethod("setLoudness", {"gainDb": clamped});
+    } catch (e) {
+      debugPrint('[EQ] setLoudness ERROR: $e');
+    }
+  }
 
+  Future<void> setLoudnessEnabled(bool enabled) async {
+    try {
+      await _channel.invokeMethod("setLoudnessEnabled", {"enabled": enabled});
+    } catch (e) {
+      debugPrint('[EQ] setLoudnessEnabled ERROR: $e');
+    }
+  }
+
+  Future<void> setLimiterEnabled(bool enabled) async {
+    try {
+      await _channel.invokeMethod("setLimiterEnabled", {"enabled": enabled});
+    } catch (e) {
+      debugPrint('[EQ] setLimiterEnabled ERROR: $e');
+    }
+  }
+
+  Future<void> setLimiterParams({
+    required double threshold,
+    required double ratio,
+    required double attack,
+    required double release,
+    required double postGain,
+  }) async {
+    try {
+      await _channel.invokeMethod("setLimiter", {
+        "threshold": threshold,
+        "ratio": ratio,
+        "attack": attack,
+        "release": release,
+        "postGain": postGain,
+      });
+    } catch (e) {
+      debugPrint('[EQ] setLimiterParams ERROR: $e');
+    }
+  }
+
+  Future<void> setBassFrequency(int hz) async {
+    if (_currentConfig == null) {
+      _currentConfig = EqConfig.flat();
+    }
+    _currentConfig = _currentConfig!.copyWith(bassFrequencyHz: hz);
+
+    try {
+      await _channel.invokeMethod("setBassFrequency", {"hz": hz});
+    } catch (e) {
+      debugPrint('[EQ] setBassFrequency ERROR: $e');
+    }
+
+    // Apply extra EQ boost at the selected bass frequency
+    if (hz != 80 && _currentConfig!.bassBoost > 0) {
+      final boostAmount = _currentConfig!.bassBoost * 0.3;
+      final nativeGains = _mapToNativeBands(_currentConfig!.bandGains, bandFrequencies);
+      // Find closest native band
+      var bestIdx = 0;
+      var bestDiff = 999999;
+      for (var i = 0; i < _nativeBandFrequencies.length; i++) {
+        final diff = (hz - _nativeBandFrequencies[i]).abs();
+        if (diff < bestDiff) {
+          bestDiff = diff;
+          bestIdx = i;
+        }
+      }
+      nativeGains[bestIdx] = (nativeGains[bestIdx] + boostAmount).clamp(-12.0, 12.0);
+      try {
+        await _channel.invokeMethod("setBandGain", {
+          "bandIndex": bestIdx,
+          "gainDb": nativeGains[bestIdx],
+        });
+      } catch (e) {
+        debugPrint('[EQ] setBassFrequency band boost ERROR: $e');
+      }
+    }
+
+    await saveGlobal();
+    notifyListeners();
+  }
+
+  void applyConfigDirect(EqConfig config) {
+    _currentConfig = config;
+    saveGlobal();
+    notifyListeners();
+  }
+
+  Future<void> reset() async {
+    _currentConfig = EqConfig.flat();
     await _applyFullConfig(_currentConfig!);
-    await _eqRepository.deleteForSong(_currentSongId!);
+    await _eqRepository.resetGlobal();
     notifyListeners();
   }
 }

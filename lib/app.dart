@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'core/theme/app_theme.dart';
+import 'core/theme/tokens/tokens.dart';
 import 'features/home/for_you_screen.dart';
 import 'features/library/library_screen.dart';
+import 'features/library/library_controller.dart';
 import 'features/albums/albums_screen.dart';
 import 'features/artists/artists_screen.dart';
 import 'features/playlists/playlists_screen.dart';
 import 'features/settings/settings_screen.dart';
 import 'features/player/player_controller.dart';
 import 'features/settings/settings_controller.dart';
+import 'services/dynamic_theme_service.dart';
 import 'widgets/mini_player.dart';
 
 class AuraApp extends StatelessWidget {
@@ -32,16 +36,44 @@ class _Shell extends StatefulWidget {
   @override State<_Shell> createState() => _ShellState();
 }
 
-class _ShellState extends State<_Shell> {
+class _ShellState extends State<_Shell> with TickerProviderStateMixin {
   int _idx = 0;
-  final _screens = const [
-    ForYouScreen(), LibraryScreen(), AlbumsScreen(), ArtistsScreen(), PlaylistsScreen(), SettingsScreen()
+  late AnimationController _indicatorAnim;
+  late Animation<double> _indicatorScale;
+
+  final List<Widget> _screens = const [
+    ForYouScreen(),
+    _LibraryShell(),
+    PlaylistsScreen(),
+    SettingsScreen(),
   ];
+
+  static const _tabIcons = [
+    (outlined: Icons.home_outlined, filled: Icons.home),
+    (outlined: Icons.library_music_outlined, filled: Icons.library_music),
+    (outlined: Icons.queue_music_outlined, filled: Icons.queue_music),
+    (outlined: Icons.settings_outlined, filled: Icons.settings),
+  ];
+
+  static const _tabLabels = ['Home', 'Library', 'Playlists', 'Settings'];
 
   @override
   void initState() {
     super.initState();
+    _indicatorAnim = AnimationController(
+      vsync: this,
+      duration: AuraAnimation.fast,
+    );
+    _indicatorScale = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(parent: _indicatorAnim, curve: AuraAnimation.spring),
+    );
     _setupErrorListener();
+  }
+
+  @override
+  void dispose() {
+    _indicatorAnim.dispose();
+    super.dispose();
   }
 
   void _setupErrorListener() {
@@ -58,16 +90,23 @@ class _ShellState extends State<_Shell> {
     });
   }
 
+  void _onTabSelected(int i) {
+    HapticFeedback.selectionClick();
+    _indicatorAnim.forward(from: 0);
+    setState(() => _idx = i);
+  }
+
   @override
   Widget build(BuildContext context) {
     final ctrl = context.watch<PlayerController>();
     final settings = context.watch<SettingsController>();
-    final bgColor = settings.themeMode == ThemeMode.light
-        ? AuraColors.lightBackground
-        : AuraColors.background;
-    final navColor = settings.themeMode == ThemeMode.light
-        ? AuraColors.lightSurface
-        : AuraColors.surface;
+    final themeService = context.watch<DynamicThemeService>();
+    final isDark = settings.themeMode == ThemeMode.dark ||
+        (settings.themeMode == ThemeMode.system &&
+            MediaQuery.platformBrightnessOf(context) == Brightness.dark);
+    final bgColor = isDark ? AuraColors.background : AuraColors.lightBackground;
+    final navColor = isDark ? AuraColors.surface : AuraColors.lightSurface;
+    final navIndicator = themeService.dominantColor.withOpacity(isDark ? 0.2 : 0.15);
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -75,27 +114,118 @@ class _ShellState extends State<_Shell> {
         IndexedStack(index: _idx, children: _screens),
         if (ctrl.currentSong != null)
           Positioned(
-            bottom: 70, left: 8, right: 8,
+            left: 0, right: 0,
+            bottom: 56,
             child: const MiniPlayer()),
       ]),
       bottomNavigationBar: NavigationBar(
         backgroundColor: navColor,
+        indicatorColor: navIndicator,
         selectedIndex: _idx,
-        onDestinationSelected: (i) => setState(() => _idx = i),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.home_outlined),
-              selectedIcon: Icon(Icons.home), label: 'Para Ti'),
-          NavigationDestination(icon: Icon(Icons.music_note_outlined),
-              selectedIcon: Icon(Icons.music_note), label: 'Canciones'),
-          NavigationDestination(icon: Icon(Icons.album_outlined),
-              selectedIcon: Icon(Icons.album), label: 'Álbumes'),
-          NavigationDestination(icon: Icon(Icons.person_outlined),
-              selectedIcon: Icon(Icons.person), label: 'Artistas'),
-          NavigationDestination(icon: Icon(Icons.queue_music_outlined),
-              selectedIcon: Icon(Icons.queue_music), label: 'Listas'),
-          NavigationDestination(icon: Icon(Icons.settings_outlined),
-              selectedIcon: Icon(Icons.settings), label: 'Ajustes'),
-        ],
+        onDestinationSelected: _onTabSelected,
+        destinations: List.generate(_tabIcons.length, (i) {
+          final icons = _tabIcons[i];
+          return NavigationDestination(
+            icon: Icon(icons.outlined),
+            selectedIcon: Icon(icons.filled),
+            label: _tabLabels[i],
+          );
+        }),
+      ),
+    );
+  }
+}
+
+class _LibraryShell extends StatefulWidget {
+  const _LibraryShell();
+  @override State<_LibraryShell> createState() => _LibraryShellState();
+}
+
+class _LibraryShellState extends State<_LibraryShell> {
+  int _tab = 0;
+
+  static const _subTabs = [
+    (icon: Icons.music_note, label: 'Songs'),
+    (icon: Icons.album, label: 'Albums'),
+    (icon: Icons.person, label: 'Artists'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? AuraColors.background : AuraColors.lightBackground;
+    final txt = isDark ? AuraColors.text : AuraColors.lightText;
+    final txtMuted = isDark ? AuraColors.textMuted : AuraColors.lightTextMuted;
+
+    final screens = const [
+      LibraryScreen(),
+      AlbumsScreen(),
+      ArtistsScreen(),
+    ];
+
+    return Consumer<LibraryController>(
+      builder: (_, ctrl, __) => Scaffold(
+        backgroundColor: bg,
+        appBar: AppBar(
+          backgroundColor: bg,
+          elevation: 0,
+          title: const Text('Library', style: AuraTypography.headline),
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(48),
+            child: Material(
+              color: Colors.transparent,
+              child: Row(
+                children: List.generate(_subTabs.length, (i) {
+                  final isActive = _tab == i;
+                  return Expanded(
+                    child: GestureDetector(
+                      onTap: () => setState(() => _tab = i),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: AuraSpacing.md),
+                        decoration: BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(
+                              color: isActive
+                                  ? Theme.of(context).colorScheme.primary
+                                  : Colors.transparent,
+                              width: 2,
+                            ),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              _subTabs[i].icon,
+                              size: 18,
+                              color: isActive ? txt : txtMuted,
+                            ),
+                            const SizedBox(width: AuraSpacing.xs),
+                            Text(
+                              _subTabs[i].label,
+                              style: AuraTypography.label.copyWith(
+                                color: isActive ? txt : txtMuted,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ),
+            ),
+          ),
+        ),
+        body: IndexedStack(index: _tab, children: screens),
+        floatingActionButton: _tab == 0 && ctrl.songs.isNotEmpty
+            ? FloatingActionButton.extended(
+                onPressed: ctrl.shuffleAll,
+                backgroundColor: AuraColors.primary,
+                icon: const Icon(Icons.shuffle),
+                label: const Text('Aleatorio'),
+              )
+            : null,
       ),
     );
   }

@@ -1,8 +1,11 @@
 package com.daviddev.aura_music
 
 import android.media.audiofx.BassBoost
+import android.media.audiofx.DynamicsProcessing
 import android.media.audiofx.Equalizer
+import android.media.audiofx.LoudnessEnhancer
 import android.media.audiofx.Virtualizer
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import io.flutter.embedding.android.FlutterActivity
@@ -16,6 +19,8 @@ class MainActivity : FlutterActivity() {
     private var equalizer: Equalizer? = null
     private var bassBoost: BassBoost? = null
     private var virtualizer: Virtualizer? = null
+    private var loudnessEnhancer: LoudnessEnhancer? = null
+    private var dynamicsProcessing: DynamicsProcessing? = null
     private var currentSessionId: Int = -1
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -91,7 +96,6 @@ class MainActivity : FlutterActivity() {
                         try {
                             bassBoost?.let {
                                 if (it.strengthSupported) {
-                                    // Cap at 600 to avoid distortion/boxing
                                     val strength = ((gainDb / 15.0) * 600).toInt().coerceIn(0, 600)
                                     Log.i(TAG, "setBassBoost: gainDb=$gainDb → strength=$strength")
                                     it.setStrength(strength.toShort())
@@ -108,7 +112,6 @@ class MainActivity : FlutterActivity() {
                         try {
                             virtualizer?.let {
                                 if (it.strengthSupported) {
-                                    // Cap at 500 to avoid synthetic sound
                                     val s = (strength * 500).toInt().coerceIn(0, 500)
                                     Log.i(TAG, "setVirtualizer: input=$strength → strength=$s")
                                     it.setStrength(s.toShort())
@@ -119,6 +122,77 @@ class MainActivity : FlutterActivity() {
                             Log.e(TAG, "setVirtualizer ERROR", e)
                             result.error("EQ_ERROR", e.message, null)
                         }
+                    }
+                    "setLoudness" -> {
+                        val gainDb = call.argument<Double>("gainDb") ?: 0.0
+                        try {
+                            loudnessEnhancer?.let {
+                                val targetGainMb = (gainDb * 100).toInt()
+                                it.setTargetGain(targetGainMb)
+                                Log.i(TAG, "setLoudness: gainDb=$gainDb → targetGainMb=$targetGainMb")
+                            }
+                            result.success(null)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "setLoudness ERROR", e)
+                            result.error("FX_ERROR", e.message, null)
+                        }
+                    }
+                    "setLoudnessEnabled" -> {
+                        val enabled = call.argument<Boolean>("enabled") ?: false
+                        try {
+                            loudnessEnhancer?.enabled = enabled
+                            Log.i(TAG, "setLoudnessEnabled: $enabled")
+                            result.success(null)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "setLoudnessEnabled ERROR", e)
+                            result.error("FX_ERROR", e.message, null)
+                        }
+                    }
+                    "setLimiterEnabled" -> {
+                        val enabled = call.argument<Boolean>("enabled") ?: false
+                        try {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                                dynamicsProcessing?.enabled = enabled
+                                Log.i(TAG, "setLimiterEnabled: $enabled")
+                            }
+                            result.success(null)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "setLimiterEnabled ERROR", e)
+                            result.error("FX_ERROR", e.message, null)
+                        }
+                    }
+                    "setLimiter" -> {
+                        try {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                                val threshold = call.argument<Double>("threshold") ?: -3.0
+                                val ratio = call.argument<Double>("ratio") ?: 4.0
+                                val attack = call.argument<Double>("attack") ?: 10.0
+                                val release = call.argument<Double>("release") ?: 100.0
+                                val postGain = call.argument<Double>("postGain") ?: 0.0
+
+                                dynamicsProcessing?.let { dp ->
+                                    val limiter = DynamicsProcessing.Limiter(
+                                        true,   // enabled
+                                        1,      // linkGroup
+                                        attack.toFloat(),
+                                        release.toFloat(),
+                                        ratio.toFloat(),
+                                        threshold.toFloat(),
+                                        postGain.toFloat()
+                                    )
+                                    dp.setLimiterAllChannelsTo(limiter)
+                                    Log.i(TAG, "setLimiter: threshold=$threshold, ratio=$ratio, attack=$attack, release=$release, postGain=$postGain")
+                                }
+                            }
+                            result.success(null)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "setLimiter ERROR", e)
+                            result.error("FX_ERROR", e.message, null)
+                        }
+                    }
+                    "setBassFrequency" -> {
+                        // Handled in Dart side — no-op here
+                        result.success(null)
                     }
                     else -> result.notImplemented()
                 }
@@ -154,17 +228,59 @@ class MainActivity : FlutterActivity() {
             virtualizer = null
         }
 
+        try {
+            loudnessEnhancer = LoudnessEnhancer(sessionId).apply { enabled = false }
+            Log.i(TAG, "  LoudnessEnhancer OK")
+        } catch (e: Exception) {
+            Log.w(TAG, "  LoudnessEnhancer not supported: ${e.message}")
+            loudnessEnhancer = null
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            try {
+                dynamicsProcessing = DynamicsProcessing.Builder()
+                    .setPreEqInUse(false)
+                    .setMbcInUse(false)
+                    .setPostEqInUse(false)
+                    .setLimiterInUse(true)
+                    .build()
+                dynamicsProcessing!!.enabled = false
+
+                // Set default limiter params
+                val defaultLimiter = DynamicsProcessing.Limiter(
+                    true, 1,
+                    10.0f,   // attack ms
+                    100.0f,  // release ms
+                    4.0f,    // ratio
+                    -3.0f,   // threshold dB
+                    0.0f     // postGain dB
+                )
+                dynamicsProcessing!!.setLimiterAllChannelsTo(defaultLimiter)
+                Log.i(TAG, "  DynamicsProcessing (Limiter) OK")
+            } catch (e: Exception) {
+                Log.w(TAG, "  DynamicsProcessing not supported: ${e.message}")
+                dynamicsProcessing = null
+            }
+        } else {
+            Log.i(TAG, "  DynamicsProcessing skipped: API < 28")
+            dynamicsProcessing = null
+        }
+
         currentSessionId = sessionId
-        Log.i(TAG, "initEffects complete: eq=${equalizer != null}, bb=${bassBoost != null}, virt=${virtualizer != null}")
+        Log.i(TAG, "initEffects complete: eq=${equalizer != null}, bb=${bassBoost != null}, virt=${virtualizer != null}, loudness=${loudnessEnhancer != null}, dp=${dynamicsProcessing != null}")
     }
 
     private fun releaseEffects() {
         try { equalizer?.release() } catch (_: Exception) {}
         try { bassBoost?.release() } catch (_: Exception) {}
         try { virtualizer?.release() } catch (_: Exception) {}
+        try { loudnessEnhancer?.release() } catch (_: Exception) {}
+        try { dynamicsProcessing?.release() } catch (_: Exception) {}
         equalizer = null
         bassBoost = null
         virtualizer = null
+        loudnessEnhancer = null
+        dynamicsProcessing = null
     }
 
     override fun onDestroy() {
