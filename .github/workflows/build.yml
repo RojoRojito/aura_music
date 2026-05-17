@@ -76,18 +76,8 @@ jobs:
           sed -i "s/kotlin_version = '[^']*'/kotlin_version = '1.9.22'/" android/build.gradle 2>/dev/null || true
           sed -i 's/ext.kotlin_version = "[^"]*"/ext.kotlin_version = "1.9.22"/' android/build.gradle 2>/dev/null || true
 
-          # 10. Force Kotlin compiler via buildscript classpath
-          sed -i '1i\
-          buildscript {\
-              repositories {\
-                  google()\
-                  mavenCentral()\
-              }\
-              dependencies {\
-                  classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.22"\
-              }\
-          }\
-          ' android/build.gradle
+          # 10. Upgrade Gradle wrapper to 8.0 (embeds Kotlin 1.8.0)
+          sed -i 's|gradle-7\.[0-9]*\.[0-9]*-all.zip|gradle-8.0-all.zip|' android/gradle/wrapper/gradle-wrapper.properties
 
           echo "=== settings.gradle AFTER patch ==="
           cat android/settings.gradle
