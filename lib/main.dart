@@ -37,7 +37,7 @@ Future<void> main() async {
   final favoritesRepository = FavoritesRepository();
   await favoritesRepository.loadFavorites();
 
-  final AuraAudioHandler audioHandler;
+  late AuraAudioHandler audioHandler;
   try {
     audioHandler = await AudioService.init(
       builder: () => AuraAudioHandler(),
