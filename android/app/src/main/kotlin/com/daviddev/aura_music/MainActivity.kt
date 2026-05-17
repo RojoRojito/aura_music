@@ -62,7 +62,7 @@ class MainActivity : FlutterActivity() {
                         equalizer?.let {
                             val freqs = mutableListOf<Int>()
                             for (i in 0 until it.numberOfBands) {
-                                freqs.add(it.getCenterFreq(i) / 1000) // milliHz to Hz
+                                freqs.add(it.getCenterFreq(i.toShort()) / 1000) // milliHz to Hz
                             }
                             result.success(freqs)
                         } ?: result.success(listOf(60, 230, 910, 3600, 14000))
