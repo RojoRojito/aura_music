@@ -76,21 +76,16 @@ jobs:
           sed -i "s/kotlin_version = '[^']*'/kotlin_version = '1.9.22'/" android/build.gradle 2>/dev/null || true
           sed -i 's/ext.kotlin_version = "[^"]*"/ext.kotlin_version = "1.9.22"/' android/build.gradle 2>/dev/null || true
 
-          # 10. Fix Kotlin version in Flutter Gradle plugin (composite build)
+          # 10. Debug: check Flutter SDK Gradle plugin Kotlin version
           FLUTTER_SDK_PATH=$(dirname $(which flutter))/..
-          find "$FLUTTER_SDK_PATH/packages/flutter_tools/gradle" -name "*.gradle.kts" -o -name "*.gradle" | while read f; do
-            echo "=== Patching: $f ==="
-            sed -i 's/1\.7\.10/1.9.22/g' "$f"
-            sed -i 's/1\.7\.22/1.9.22/g' "$f"
-            sed -i 's/1\.8\.0/1.9.22/g' "$f"
-            sed -i 's/1\.8\.10/1.9.22/g' "$f"
-            sed -i 's/1\.8\.22/1.9.22/g' "$f"
-          done
-
-          # 11. Fix JVM target mismatch and Gradle 8 compat
-          echo "kotlin.jvm.target.validation.mode=warning" >> android/gradle.properties
-          echo "android.defaults.buildfeatures.buildconfig=true" >> android/gradle.properties
-          echo "android.nonTransitiveRClass=false" >> android/gradle.properties
+          echo "=== Flutter SDK build.gradle.kts ==="
+          cat "$FLUTTER_SDK_PATH/packages/flutter_tools/gradle/build.gradle.kts" 2>/dev/null || echo "NOT FOUND"
+          echo "=== Flutter SDK settings.gradle.kts ==="
+          cat "$FLUTTER_SDK_PATH/packages/flutter_tools/gradle/settings.gradle.kts" 2>/dev/null || echo "NOT FOUND"
+          echo "=== Flutter SDK flutter.gradle.kts ==="
+          cat "$FLUTTER_SDK_PATH/packages/flutter_tools/gradle/src/main/kotlin/flutter.gradle.kts" 2>/dev/null || echo "NOT FOUND"
+          echo "=== Gradle version ==="
+          cd android && ./gradlew --version 2>&1 | head -10 && cd ..
 
           echo "=== settings.gradle AFTER patch ==="
           cat android/settings.gradle
