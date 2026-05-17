@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/repositories/favorites_repository.dart';
 import '../../services/audio_handler.dart';
-import '../../services/dynamic_theme_service.dart';
 import '../../services/equalizer_service.dart';
 import 'player_controller.dart';
 import '../equalizer/equalizer_screen.dart';
@@ -21,8 +20,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   @override
   Widget build(BuildContext context) {
     final ctrl = context.watch<PlayerController>();
-    final theme = context.watch<DynamicThemeService>();
-    final accent = theme.accentColor;
+    final accent = ctrl.accentColor;
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
