@@ -31,61 +31,56 @@ class MiniPlayer extends StatelessWidget {
         }
       },
       child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-            child: Container(
-              height: 64, padding: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(
-                color: AuraColors.surfaceHigh.withOpacity(0.92),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AuraColors.divider, width: 0.5)),
-              child: Row(children: [
-                ClipRRect(borderRadius: BorderRadius.circular(8),
-                  child: SizedBox(width: 44, height: 44,
-                    child: QueryArtworkWidget(
-                      id: song.albumId ?? 0, type: ArtworkType.ALBUM,
-                      nullArtworkWidget: Container(
-                        color: AuraColors.surfaceHigh,
-                        child: const Icon(Icons.music_note,
-                            color: AuraColors.primary, size: 20))))),
-                const SizedBox(width: 10),
-                Expanded(child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(song.title, maxLines: 1, overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: AuraColors.text,
-                            fontSize: 13, fontWeight: FontWeight.w600)),
-                    Text(song.artist, maxLines: 1, overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: AuraColors.textMuted, fontSize: 11)),
-                  ])),
-                StreamBuilder<PositionData>(
-                  stream: ctrl.pos,
-                  builder: (_, snap) {
-                    final pos = snap.data?.position.inMilliseconds ?? 0;
-                    final dur = snap.data?.duration.inMilliseconds ?? 1;
-                    return SizedBox(width: 36, height: 36,
-                      child: CircularProgressIndicator(
-                        value: (pos / dur).clamp(0.0, 1.0),
-                        backgroundColor: AuraColors.divider,
-                        valueColor: const AlwaysStoppedAnimation(AuraColors.primary),
-                        strokeWidth: 2.5));
-                  }),
-                const SizedBox(width: 4),
-                IconButton(
-                  icon: Icon(ctrl.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                      color: AuraColors.text, size: 28),
-                  onPressed: ctrl.togglePlay),
-                IconButton(
-                  icon: const Icon(Icons.skip_next_rounded,
-                      color: AuraColors.textMuted, size: 24),
-                  onPressed: ctrl.next),
-              ]),
-            ),
-          ),
-        ),
-      ),
-    );
+        borderRadius: BorderRadius.circular(16),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+          child: Container(
+            height: 64,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: AuraColors.surfaceHigh.withOpacity(0.92),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AuraColors.divider, width: 0.5)),
+            child: Row(children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: SizedBox(
+                  width: 44, height: 44,
+                  child: QueryArtworkWidget(
+                    id: song.albumId ?? 0, type: ArtworkType.ALBUM,
+                    nullArtworkWidget: Container(
+                      color: AuraColors.surfaceHigh,
+                      child: const Icon(Icons.music_note, color: AuraColors.primary, size: 20))))),
+              const SizedBox(width: 10),
+              Expanded(child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(song.title, maxLines: 1, overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: AuraColors.text, fontSize: 13, fontWeight: FontWeight.w600)),
+                  Text(song.artist, maxLines: 1, overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: AuraColors.textMuted, fontSize: 11)),
+                ])),
+              StreamBuilder<PositionData>(
+                stream: ctrl.pos,
+                builder: (_, snap) {
+                  final pos = snap.data?.position.inMilliseconds ?? 0;
+                  final dur = snap.data?.duration.inMilliseconds ?? 1;
+                  return SizedBox(
+                    width: 36, height: 36,
+                    child: CircularProgressIndicator(
+                      value: (pos / dur).clamp(0.0, 1.0),
+                      backgroundColor: AuraColors.divider,
+                      valueColor: const AlwaysStoppedAnimation(AuraColors.primary),
+                      strokeWidth: 2.5));
+                }),
+              const SizedBox(width: 4),
+              IconButton(
+                icon: Icon(ctrl.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded, color: AuraColors.text, size: 28),
+                onPressed: ctrl.togglePlay),
+              IconButton(
+                icon: const Icon(Icons.skip_next_rounded, color: AuraColors.textMuted, size: 24),
+                onPressed: ctrl.next),
+            ])))));
   }
 }
