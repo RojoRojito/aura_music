@@ -14,6 +14,9 @@ class EqualizerService extends ChangeNotifier {
 
   EqConfig? _currentConfig;
   int? _currentSongId;
+  int _nativeBandCount = 5;
+
+  int get nativeBandCount => _nativeBandCount;
 
   EqualizerService(this._eqRepository);
 
@@ -25,7 +28,8 @@ class EqualizerService extends ChangeNotifier {
     debugPrint('[EQ] initSession recibido: sessionId=$sessionId');
     try {
       await _channel.invokeMethod("initSession", {"sessionId": sessionId});
-      debugPrint('[EQ] initSession OK en nativo');
+      _nativeBandCount = await _channel.invokeMethod("getBandCount") ?? 5;
+      debugPrint('[EQ] initSession OK en nativo, nativeBandCount=$_nativeBandCount');
       if (_currentConfig != null) {
         await _applyFullConfig(_currentConfig!);
         debugPrint('[EQ] config reaplicada');
@@ -47,9 +51,9 @@ class EqualizerService extends ChangeNotifier {
 
   Future<void> _applyFullConfig(EqConfig config) async {
     try {
-      debugPrint('[EQ] _applyFullConfig: enabled=${config.enabled}');
+      debugPrint('[EQ] _applyFullConfig: enabled=${config.enabled}, nativeBands=$_nativeBandCount');
       await _channel.invokeMethod("setEnabled", {"enabled": config.enabled});
-      for (var i = 0; i < bandCount; i++) {
+      for (var i = 0; i < _nativeBandCount && i < bandCount; i++) {
         await _channel.invokeMethod("setBandGain", {
           "bandIndex": i,
           "gainDb": config.bandGains[i],
@@ -74,14 +78,18 @@ class EqualizerService extends ChangeNotifier {
 
     _currentConfig = _currentConfig!.copyWith(bandGains: newBands, presetName: null);
 
-    try {
-      debugPrint('[EQ] setBandGain($index, $clampedGain)');
-      await _channel.invokeMethod("setBandGain", {
-        "bandIndex": index,
-        "gainDb": clampedGain,
-      });
-    } catch (e) {
-      debugPrint('[EQ] setBandGain ERROR: $e');
+    if (index < _nativeBandCount) {
+      try {
+        debugPrint('[EQ] setBandGain($index, $clampedGain)');
+        await _channel.invokeMethod("setBandGain", {
+          "bandIndex": index,
+          "gainDb": clampedGain,
+        });
+      } catch (e) {
+        debugPrint('[EQ] setBandGain ERROR: $e');
+      }
+    } else {
+      debugPrint('[EQ] setBandGain($index, $clampedGain) — skipped (beyond native $_nativeBandCount bands)');
     }
 
     if (_currentSongId != null) {

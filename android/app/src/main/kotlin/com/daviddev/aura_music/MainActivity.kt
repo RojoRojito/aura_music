@@ -55,11 +55,19 @@ class MainActivity : FlutterActivity() {
                             result.error("EQ_ERROR", e.message, null)
                         }
                     }
+                    "getBandCount" -> {
+                        result.success(equalizer?.numberOfBands?.toInt() ?: 5)
+                    }
                     "setBandGain" -> {
                         val bandIndex = call.argument<Int>("bandIndex") ?: 0
                         val gainDb = call.argument<Double>("gainDb") ?: 0.0
                         try {
                             equalizer?.let {
+                                val numBands = it.numberOfBands.toInt()
+                                if (bandIndex < 0 || bandIndex >= numBands) {
+                                    result.success(null)
+                                    return@setMethodCallHandler
+                                }
                                 val levelMb = (gainDb * 100).toInt().toShort()
                                 it.setBandLevel(bandIndex.toShort(), levelMb)
                             }
