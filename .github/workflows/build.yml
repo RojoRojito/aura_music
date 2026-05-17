@@ -55,14 +55,10 @@ jobs:
           # 7. Restaurar archivos Kotlin nativos (overwrite generated ones)
           echo "=== native_backup contents ==="
           find native_backup -type f
-          echo "=== Generated MainActivity.kt BEFORE overwrite ==="
-          head -3 android/app/src/main/kotlin/com/daviddev/aura_music/MainActivity.kt 2>/dev/null || echo "not found"
-          # Force overwrite
-          cp -f native_backup/com/daviddev/aura_music/MainActivity.kt android/app/src/main/kotlin/com/daviddev/aura_music/MainActivity.kt 2>/dev/null || \
-          cp -f native_backup/MainActivity.kt android/app/src/main/kotlin/com/daviddev/aura_music/MainActivity.kt 2>/dev/null || \
-          echo "WARN: could not restore MainActivity.kt"
+          # The backup is at native_backup/aura_music/MainActivity.kt (flattened path)
+          cp -f native_backup/aura_music/MainActivity.kt android/app/src/main/kotlin/com/daviddev/aura_music/MainActivity.kt
           echo "=== MainActivity.kt AFTER overwrite ==="
-          head -3 android/app/src/main/kotlin/com/daviddev/aura_music/MainActivity.kt
+          head -5 android/app/src/main/kotlin/com/daviddev/aura_music/MainActivity.kt
 
           # 8. Restaurar just_audio_local
           if [ -d "just_audio_local.bak" ]; then
