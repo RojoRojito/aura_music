@@ -58,6 +58,15 @@ class MainActivity : FlutterActivity() {
                     "getBandCount" -> {
                         result.success(equalizer?.numberOfBands?.toInt() ?: 5)
                     }
+                    "getBandFrequencies" -> {
+                        equalizer?.let {
+                            val freqs = mutableListOf<Int>()
+                            for (i in 0 until it.numberOfBands) {
+                                freqs.add(it.getCenterFreq(i) / 1000) // milliHz to Hz
+                            }
+                            result.success(freqs)
+                        } ?: result.success(listOf(60, 230, 910, 3600, 14000))
+                    }
                     "setBandGain" -> {
                         val bandIndex = call.argument<Int>("bandIndex") ?: 0
                         val gainDb = call.argument<Double>("gainDb") ?: 0.0
@@ -82,7 +91,9 @@ class MainActivity : FlutterActivity() {
                         try {
                             bassBoost?.let {
                                 if (it.strengthSupported) {
-                                    val strength = ((gainDb / 15.0) * 1000).toInt().coerceIn(0, 1000)
+                                    // Cap at 600 to avoid distortion/boxing
+                                    val strength = ((gainDb / 15.0) * 600).toInt().coerceIn(0, 600)
+                                    Log.i(TAG, "setBassBoost: gainDb=$gainDb → strength=$strength")
                                     it.setStrength(strength.toShort())
                                 }
                             }
@@ -97,7 +108,9 @@ class MainActivity : FlutterActivity() {
                         try {
                             virtualizer?.let {
                                 if (it.strengthSupported) {
-                                    val s = (strength * 1000).toInt().coerceIn(0, 1000)
+                                    // Cap at 500 to avoid synthetic sound
+                                    val s = (strength * 500).toInt().coerceIn(0, 500)
+                                    Log.i(TAG, "setVirtualizer: input=$strength → strength=$s")
                                     it.setStrength(s.toShort())
                                 }
                             }

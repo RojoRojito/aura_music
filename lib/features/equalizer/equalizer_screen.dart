@@ -107,9 +107,9 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            const Text(
-              'ECUALIZADOR — 12 BANDAS',
-              style: TextStyle(
+            Text(
+              'ECUALIZADOR — ${eqService.nativeBandCount} BANDAS NATIVAS',
+              style: const TextStyle(
                 color: AuraColors.textMuted,
                 fontSize: 11,
                 letterSpacing: 1.2,

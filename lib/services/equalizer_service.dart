@@ -15,8 +15,11 @@ class EqualizerService extends ChangeNotifier {
   EqConfig? _currentConfig;
   int? _currentSongId;
   int _nativeBandCount = 5;
+  List<int> _nativeBandFrequencies = [];
+  List<int> _bandMapping = []; // _bandMapping[uiBand] = nativeBand
 
   int get nativeBandCount => _nativeBandCount;
+  List<int> get nativeBandFrequencies => _nativeBandFrequencies;
 
   EqualizerService(this._eqRepository);
 
@@ -29,7 +32,13 @@ class EqualizerService extends ChangeNotifier {
     try {
       await _channel.invokeMethod("initSession", {"sessionId": sessionId});
       _nativeBandCount = await _channel.invokeMethod("getBandCount") ?? 5;
-      debugPrint('[EQ] initSession OK en nativo, nativeBandCount=$_nativeBandCount');
+      final freqsRaw = await _channel.invokeMethod("getBandFrequencies");
+      if (freqsRaw is List) {
+        _nativeBandFrequencies = freqsRaw.map((e) => (e as num).toInt()).toList();
+      }
+      _buildBandMapping();
+      debugPrint('[EQ] initSession OK, nativeBandCount=$_nativeBandCount, '
+          'nativeFreqs=$_nativeBandFrequencies, mapping=$_bandMapping');
       if (_currentConfig != null) {
         await _applyFullConfig(_currentConfig!);
         debugPrint('[EQ] config reaplicada');
@@ -37,6 +46,38 @@ class EqualizerService extends ChangeNotifier {
     } catch (e) {
       debugPrint('[EQ] initSession ERROR: $e');
     }
+  }
+
+  void _buildBandMapping() {
+    // Map each 12-band UI frequency to closest native band
+    _bandMapping = List.generate(bandCount, (uiIdx) {
+      final uiFreq = bandFrequencies[uiIdx];
+      var bestIdx = 0;
+      var bestDiff = 999999999;
+      for (var nIdx = 0; nIdx < _nativeBandFrequencies.length; nIdx++) {
+        final diff = (uiFreq - _nativeBandFrequencies[nIdx]).abs();
+        if (diff < bestDiff) {
+          bestDiff = diff;
+          bestIdx = nIdx;
+        }
+      }
+      return bestIdx;
+    });
+  }
+
+  /// Aggregate 12 UI band gains into native band gains
+  List<double> _mapToNativeBands(List<double> uiGains) {
+    final nativeGains = List.filled(_nativeBandCount, 0.0);
+    final nativeCounts = List.filled(_nativeBandCount, 0);
+    for (var i = 0; i < bandCount && i < uiGains.length; i++) {
+      final nIdx = _bandMapping[i];
+      nativeGains[nIdx] += uiGains[i];
+      nativeCounts[nIdx]++;
+    }
+    for (var i = 0; i < _nativeBandCount; i++) {
+      if (nativeCounts[i] > 0) nativeGains[i] /= nativeCounts[i];
+    }
+    return nativeGains;
   }
 
   Future<void> loadForSong(int songId) async {
@@ -53,10 +94,13 @@ class EqualizerService extends ChangeNotifier {
     try {
       debugPrint('[EQ] _applyFullConfig: enabled=${config.enabled}, nativeBands=$_nativeBandCount');
       await _channel.invokeMethod("setEnabled", {"enabled": config.enabled});
-      for (var i = 0; i < _nativeBandCount && i < bandCount; i++) {
+
+      final nativeGains = _mapToNativeBands(config.bandGains);
+      debugPrint('[EQ] mapped gains: ui=${config.bandGains} → native=$nativeGains');
+      for (var i = 0; i < _nativeBandCount; i++) {
         await _channel.invokeMethod("setBandGain", {
           "bandIndex": i,
-          "gainDb": config.bandGains[i],
+          "gainDb": nativeGains[i],
         });
       }
       await _channel.invokeMethod("setBassBoost", {"gainDb": config.bassBoost});
@@ -78,18 +122,28 @@ class EqualizerService extends ChangeNotifier {
 
     _currentConfig = _currentConfig!.copyWith(bandGains: newBands, presetName: null);
 
-    if (index < _nativeBandCount) {
+    // Recalculate the native band this UI band maps to
+    if (index < _bandMapping.length) {
+      final nIdx = _bandMapping[index];
+      // Average all UI bands that map to this native band
+      var sum = 0.0;
+      var count = 0;
+      for (var i = 0; i < bandCount; i++) {
+        if (_bandMapping[i] == nIdx && i < newBands.length) {
+          sum += newBands[i];
+          count++;
+        }
+      }
+      final nativeGain = count > 0 ? sum / count : 0.0;
       try {
-        debugPrint('[EQ] setBandGain($index, $clampedGain)');
+        debugPrint('[EQ] setBandGain ui=$index → native=$nIdx, gain=$nativeGain');
         await _channel.invokeMethod("setBandGain", {
-          "bandIndex": index,
-          "gainDb": clampedGain,
+          "bandIndex": nIdx,
+          "gainDb": nativeGain,
         });
       } catch (e) {
         debugPrint('[EQ] setBandGain ERROR: $e');
       }
-    } else {
-      debugPrint('[EQ] setBandGain($index, $clampedGain) — skipped (beyond native $_nativeBandCount bands)');
     }
 
     if (_currentSongId != null) {
