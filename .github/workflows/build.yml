@@ -66,10 +66,20 @@ jobs:
           fi
 
           # 9. Parchear Kotlin version a 1.9.22 (requerido por plugins)
+          echo "=== settings.gradle BEFORE patch ==="
+          cat android/settings.gradle
+          echo "=== build.gradle BEFORE patch ==="
+          head -20 android/build.gradle
+
           sed -i 's/org.jetbrains.kotlin.android" version "[^"]*"/org.jetbrains.kotlin.android" version "1.9.22"/' android/settings.gradle
           # Also patch build.gradle if it has kotlin_version
           sed -i "s/kotlin_version = '[^']*'/kotlin_version = '1.9.22'/" android/build.gradle 2>/dev/null || true
           sed -i 's/ext.kotlin_version = "[^"]*"/ext.kotlin_version = "1.9.22"/' android/build.gradle 2>/dev/null || true
+
+          echo "=== settings.gradle AFTER patch ==="
+          cat android/settings.gradle
+          echo "=== build.gradle AFTER patch (first 20 lines) ==="
+          head -20 android/build.gradle
 
           # 10. Verify: list ALL MainActivity.kt files
           echo "=== ALL MainActivity.kt files ==="
