@@ -73,6 +73,12 @@ jobs:
           sed -i "s/org.jetbrains.kotlin.android' version '[^']*'/org.jetbrains.kotlin.android' version '1.9.22'/" android/settings.gradle
           echo "=== settings.gradle AFTER patch ==="
           cat android/settings.gradle
+          echo "=== build.gradle FULL ==="
+          cat android/build.gradle
+          echo "=== app/build.gradle FULL ==="
+          cat android/app/build.gradle
+          echo "=== gradle-wrapper.properties ==="
+          cat android/gradle/wrapper/gradle-wrapper.properties
 
           # 10. Verify: list ALL MainActivity.kt files
           echo "=== ALL MainActivity.kt files ==="
