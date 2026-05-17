@@ -30,6 +30,9 @@ jobs:
 
       - name: Clean and Regenerate Android
         run: |
+          # 0. Clear ALL Gradle caches to avoid Kotlin metadata version mismatch
+          rm -rf ~/.gradle/caches
+
           # 1. Respaldar Manifest
           cp android/app/src/main/AndroidManifest.xml AndroidManifest.xml.bak
 
