@@ -17,6 +17,31 @@ class AuraColors {
   static const Color lightText        = Color(0xFF1A1A2E);
   static const Color lightTextMuted   = Color(0xFF6B6B80);
   static const Color lightDivider     = Color(0xFFE0E0E5);
+
+  static Color of(BuildContext ctx, {
+    required Color dark,
+    required Color light,
+  }) {
+    return Theme.of(ctx).brightness == Brightness.dark ? dark : light;
+  }
+
+  static Color backgroundOf(BuildContext ctx) =>
+      of(ctx, dark: background, light: lightBackground);
+
+  static Color surfaceOf(BuildContext ctx) =>
+      of(ctx, dark: surface, light: lightSurface);
+
+  static Color surfaceHighOf(BuildContext ctx) =>
+      of(ctx, dark: surfaceHigh, light: lightSurfaceHigh);
+
+  static Color textOf(BuildContext ctx) =>
+      of(ctx, dark: text, light: lightText);
+
+  static Color textMutedOf(BuildContext ctx) =>
+      of(ctx, dark: textMuted, light: lightTextMuted);
+
+  static Color dividerOf(BuildContext ctx) =>
+      of(ctx, dark: divider, light: lightDivider);
 }
 
 class AuraTheme {

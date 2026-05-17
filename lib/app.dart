@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'core/theme/app_theme.dart';
+import 'features/home/for_you_screen.dart';
 import 'features/library/library_screen.dart';
 import 'features/albums/albums_screen.dart';
 import 'features/artists/artists_screen.dart';
@@ -34,8 +35,28 @@ class _Shell extends StatefulWidget {
 class _ShellState extends State<_Shell> {
   int _idx = 0;
   final _screens = const [
-    LibraryScreen(), AlbumsScreen(), ArtistsScreen(), PlaylistsScreen(), SettingsScreen()
+    ForYouScreen(), LibraryScreen(), AlbumsScreen(), ArtistsScreen(), PlaylistsScreen(), SettingsScreen()
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _setupErrorListener();
+  }
+
+  void _setupErrorListener() {
+    final ctrl = context.read<PlayerController>();
+    ctrl.errorStream.listen((error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error.message),
+          backgroundColor: AuraColors.surfaceHigh,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -62,6 +83,8 @@ class _ShellState extends State<_Shell> {
         selectedIndex: _idx,
         onDestinationSelected: (i) => setState(() => _idx = i),
         destinations: const [
+          NavigationDestination(icon: Icon(Icons.home_outlined),
+              selectedIcon: Icon(Icons.home), label: 'Para Ti'),
           NavigationDestination(icon: Icon(Icons.music_note_outlined),
               selectedIcon: Icon(Icons.music_note), label: 'Canciones'),
           NavigationDestination(icon: Icon(Icons.album_outlined),

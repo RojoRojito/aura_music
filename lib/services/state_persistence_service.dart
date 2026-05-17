@@ -67,6 +67,20 @@ class StatePersistenceService {
         await clearQueueState();
         return null;
       }
+      final validQueue = state.queue.where((s) => s.uri.isNotEmpty).toList();
+      if (validQueue.isEmpty) {
+        await clearQueueState();
+        return null;
+      }
+      if (validQueue.length != state.queue.length) {
+        final adjustedIndex = state.currentIndex < validQueue.length ? state.currentIndex : 0;
+        return QueueState(
+          queue: validQueue,
+          currentIndex: adjustedIndex,
+          position: state.position,
+          timestamp: state.timestamp,
+        );
+      }
       return state;
     } catch (_) {
       await clearQueueState();

@@ -27,7 +27,7 @@ class SettingsScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _section('Reproduccion', mutedColor),
+          _section('Reproducción', mutedColor),
           _speedTile(context, settings, textColor, mutedColor, surfaceColor),
           _sleepTimerTile(context, settings, textColor, mutedColor, surfaceColor),
           const SizedBox(height: 20),
@@ -67,7 +67,7 @@ class SettingsScreen extends StatelessWidget {
   Widget _sleepTimerTile(BuildContext ctx, SettingsController settings, Color textColor, Color mutedColor, Color surfaceColor) => ListTile(
     contentPadding: EdgeInsets.zero,
     leading: Icon(Icons.timer, color: mutedColor),
-    title: Text('Temporizador de sueno', style: TextStyle(color: textColor)),
+    title: Text('Temporizador de sueño', style: TextStyle(color: textColor)),
     subtitle: Text(settings.isSleepTimerActive
         ? settings.sleepTimerRemaining
         : 'Desactivado',
@@ -146,7 +146,7 @@ class SettingsScreen extends StatelessWidget {
       builder: (_) => Column(mainAxisSize: MainAxisSize.min, children: [
         const Padding(
           padding: EdgeInsets.all(16),
-          child: Text('Temporizador de sueno',
+          child: Text('Temporizador de sueño',
               style: TextStyle(color: AuraColors.text, fontSize: 18, fontWeight: FontWeight.bold))),
         ...options.map((m) => ListTile(
           title: Text(m == 0 ? 'Desactivado' : '$m minutos',

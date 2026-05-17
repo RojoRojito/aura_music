@@ -16,43 +16,21 @@ class MiniPlayer extends StatelessWidget {
     final song = ctrl.currentSong;
     if (song == null) return const SizedBox.shrink();
 
-    return Dismissible(
-      key: const Key('mini_player'),
-      direction: DismissDirection.horizontal,
-      confirmDismiss: (dir) async {
-        if (dir == DismissDirection.endToStart) {
-          await ctrl.next();
-        } else {
-          await ctrl.previous();
+    return GestureDetector(
+      onTap: () => Navigator.push(context, PageRouteBuilder(
+        pageBuilder: (_, __, ___) => const PlayerScreen(),
+        transitionsBuilder: (_, anim, __, child) => SlideTransition(
+          position: Tween(begin: const Offset(0, 1), end: Offset.zero)
+              .animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
+          child: child))),
+      onHorizontalDragEnd: (details) {
+        if (details.primaryVelocity! > 0) {
+          ctrl.previous();
+        } else if (details.primaryVelocity! < 0) {
+          ctrl.next();
         }
-        return false;
       },
-      background: Container(
-        alignment: Alignment.centerLeft,
-        padding: const EdgeInsets.only(left: 20),
-        decoration: BoxDecoration(
-          color: AuraColors.primary.withOpacity(0.2),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: const Icon(Icons.skip_previous_rounded, color: AuraColors.primary),
-      ),
-      secondaryBackground: Container(
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-        decoration: BoxDecoration(
-          color: AuraColors.secondary.withOpacity(0.2),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: const Icon(Icons.skip_next_rounded, color: AuraColors.secondary),
-      ),
-      child: GestureDetector(
-        onTap: () => Navigator.push(context, PageRouteBuilder(
-          pageBuilder: (_, __, ___) => PlayerScreen(song: song),
-          transitionsBuilder: (_, anim, __, child) => SlideTransition(
-            position: Tween(begin: const Offset(0, 1), end: Offset.zero)
-                .animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
-            child: child))),
-        child: ClipRRect(
+      child: ClipRRect(
           borderRadius: BorderRadius.circular(16),
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),

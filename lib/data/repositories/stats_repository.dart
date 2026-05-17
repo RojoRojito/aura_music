@@ -3,8 +3,6 @@ import '../database/app_database.dart';
 import '../models/song_stats.dart';
 
 class StatsRepository extends ChangeNotifier {
-  StatsRepository();
-
   static final StatsRepository instance = StatsRepository._();
   StatsRepository._();
 

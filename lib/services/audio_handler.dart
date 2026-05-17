@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
@@ -23,9 +24,12 @@ class AudioError {
 class AuraAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   final AudioPlayer _player = AudioPlayer();
   List<Song> _queue = [];
+  List<Song> _displayQueue = [];
   int _currentIndex = 0;
   bool _sessionIdSent = false;
   bool _isSkipping = false;
+  bool _shuffleEnabled = false;
+  List<int> _shuffleMap = [];
   final _errorController = StreamController<AudioError>.broadcast();
   final _queueChangeController = StreamController<void>.broadcast();
   void Function(int songId)? onSongChanged;
@@ -67,37 +71,23 @@ class AuraAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
     _player.processingStateStream.listen((state) {
       debugPrint('[AudioHandler] processingState=$state, _sessionIdSent=$_sessionIdSent');
-      if (state == ProcessingState.ready && !_sessionIdSent) {
-        debugPrint('[AudioHandler] ProcessingState.ready → calling _checkAudioSessionId');
-        _checkAudioSessionId();
-      }
       if (state == ProcessingState.completed && !_isSkipping) skipToNext();
     });
-  }
 
-  void _checkAudioSessionId() async {
-    for (int attempt = 0; attempt < 10; attempt++) {
-      await Future.delayed(const Duration(milliseconds: 500));
-      try {
-        final sessionId = await _player.androidAudioSessionId;
-        debugPrint('[AudioHandler] intento $attempt: sessionId=$sessionId');
-        if (sessionId != null && sessionId != 0) {
-          _sessionIdSent = true;
-          debugPrint('[AudioHandler] sessionId VALIDO=$sessionId en intento $attempt');
-          debugPrint('[AudioHandler] onAudioSessionId callback is null: ${onAudioSessionId == null}');
-          try {
-            onAudioSessionId?.call(sessionId);
-            debugPrint('[AudioHandler] onAudioSessionId callback executed OK');
-          } catch (e) {
-            debugPrint('[AudioHandler] onAudioSessionId callback ERROR: $e');
-          }
-          return;
+    _player.androidAudioSessionId.listen((sessionId) {
+      debugPrint('[AudioHandler] androidAudioSessionId stream: $sessionId');
+      if (sessionId != null && sessionId != 0 && !_sessionIdSent) {
+        _sessionIdSent = true;
+        debugPrint('[AudioHandler] sessionId VALIDO=$sessionId');
+        debugPrint('[AudioHandler] onAudioSessionId callback is null: ${onAudioSessionId == null}');
+        try {
+          onAudioSessionId?.call(sessionId);
+          debugPrint('[AudioHandler] onAudioSessionId callback executed OK');
+        } catch (e) {
+          debugPrint('[AudioHandler] onAudioSessionId callback ERROR: $e');
         }
-      } catch (e) {
-        debugPrint('[AudioHandler] intento $attempt error: $e');
       }
-    }
-    debugPrint('[AudioHandler] FALLO: no se obtuvo sessionId en 10 intentos');
+    });
   }
 
   Stream<PositionData> get positionDataStream =>
@@ -111,9 +101,37 @@ class AuraAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   Stream<bool> get playingStream => _player.playingStream;
 
   Song? get currentSong => _queue.isNotEmpty ? _queue[_currentIndex] : null;
-  List<Song> get songQueue => List.unmodifiable(_queue);
+  List<Song> get songQueue => List.unmodifiable(_displayQueue.isNotEmpty ? _displayQueue : _queue);
   int get currentIndex => _currentIndex;
   AudioPlayer get player => _player;
+  bool get shuffleEnabled => _shuffleEnabled;
+
+  void _updateDisplayQueue() {
+    if (_shuffleEnabled && _queue.isNotEmpty) {
+      _displayQueue = _shuffleMap.map((i) => _queue[i]).toList();
+    } else {
+      _displayQueue = List.from(_queue);
+    }
+    _queueChangeController.add(null);
+  }
+
+  void _buildShuffleMap() {
+    _shuffleMap = List.generate(_queue.length, (i) => i);
+    final rng = Random();
+    for (var i = _shuffleMap.length - 1; i > 0; i--) {
+      final j = rng.nextInt(i + 1);
+      final tmp = _shuffleMap[i];
+      _shuffleMap[i] = _shuffleMap[j];
+      _shuffleMap[j] = tmp;
+    }
+    final currentIdx = _shuffleMap.indexOf(_currentIndex);
+    if (currentIdx > 0) {
+      final tmp = _shuffleMap[0];
+      _shuffleMap[0] = _shuffleMap[currentIdx];
+      _shuffleMap[currentIdx] = tmp;
+    }
+    _currentIndex = _shuffleMap[0];
+  }
 
   @override
   Future<void> play() => _player.play();
@@ -143,7 +161,16 @@ class AuraAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
         shuffleMode != AudioServiceShuffleMode.none);
   }
 
-  Future<void> setShuffleEnabled(bool e) => _player.setShuffleModeEnabled(e);
+  Future<void> setShuffleEnabled(bool e) async {
+    _shuffleEnabled = e;
+    await _player.setShuffleModeEnabled(e);
+    if (e) {
+      _buildShuffleMap();
+    } else {
+      _shuffleMap = [];
+    }
+    _updateDisplayQueue();
+  }
 
   @override
   Future<void> setSpeed(double speed) => _player.setSpeed(speed);
@@ -158,6 +185,15 @@ class AuraAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       if (currentLoop == LoopMode.one) {
         await _player.seek(Duration.zero);
         await _player.play();
+      } else if (_shuffleEnabled && _shuffleMap.isNotEmpty) {
+        final currentShuffleIdx = _shuffleMap.indexOf(_currentIndex);
+        if (currentShuffleIdx < _shuffleMap.length - 1) {
+          _currentIndex = _shuffleMap[currentShuffleIdx + 1];
+          await _loadCurrent();
+        } else if (currentLoop == LoopMode.all) {
+          _currentIndex = _shuffleMap[0];
+          await _loadCurrent();
+        }
       } else if (_currentIndex < _queue.length - 1) {
         _currentIndex++;
         await _loadCurrent();
@@ -174,6 +210,12 @@ class AuraAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   Future<void> skipToPrevious() async {
     if (_player.position.inSeconds > 3) {
       await _player.seek(Duration.zero);
+    } else if (_shuffleEnabled && _shuffleMap.isNotEmpty) {
+      final currentShuffleIdx = _shuffleMap.indexOf(_currentIndex);
+      if (currentShuffleIdx > 0) {
+        _currentIndex = _shuffleMap[currentShuffleIdx - 1];
+        await _loadCurrent();
+      }
     } else if (_currentIndex > 0) {
       _currentIndex--;
       await _loadCurrent();
@@ -187,7 +229,8 @@ class AuraAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       _currentIndex = 0;
       _queue.insert(0, song);
     }
-    _queueChangeController.add(null);
+    if (_shuffleEnabled) _buildShuffleMap();
+    _updateDisplayQueue();
     await _loadCurrent();
   }
 
@@ -225,19 +268,23 @@ class AuraAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
   Future<void> addToQueue(Song song) async {
     _queue.add(song);
-    _queueChangeController.add(null);
+    if (_shuffleEnabled) _buildShuffleMap();
+    _updateDisplayQueue();
   }
 
   Future<void> playNext(Song song) async {
     _queue.insert(_currentIndex + 1, song);
-    _queueChangeController.add(null);
+    if (_shuffleEnabled) _buildShuffleMap();
+    _updateDisplayQueue();
   }
 
   Future<void> removeFromQueue(int i) async {
     if (i == _currentIndex) return;
-    _queue.removeAt(i);
-    if (i < _currentIndex) _currentIndex--;
-    _queueChangeController.add(null);
+    final actualIdx = _shuffleEnabled ? _shuffleMap[i] : i;
+    _queue.removeAt(actualIdx);
+    if (actualIdx < _currentIndex) _currentIndex--;
+    if (_shuffleEnabled) _buildShuffleMap();
+    _updateDisplayQueue();
   }
 
   Future<void> restoreQueue(List<Song> songs, int index,
@@ -245,7 +292,8 @@ class AuraAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     if (songs.isEmpty) return;
     _queue = List.from(songs);
     _currentIndex = index.clamp(0, _queue.length - 1);
-    if (notify) _queueChangeController.add(null);
+    if (_shuffleEnabled) _buildShuffleMap();
+    if (notify) _updateDisplayQueue();
     await _loadCurrent();
   }
 }

@@ -2,24 +2,27 @@ import 'package:flutter/material.dart';
 import 'package:on_audio_query/on_audio_query.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
-import '../../data/models/song.dart';
 import '../../data/repositories/favorites_repository.dart';
 import '../../services/audio_handler.dart';
+import '../../services/dynamic_theme_service.dart';
 import '../../services/equalizer_service.dart';
 import 'player_controller.dart';
 import '../equalizer/equalizer_screen.dart';
 
 class PlayerScreen extends StatefulWidget {
-  final Song song;
-  const PlayerScreen({super.key, required this.song});
+  const PlayerScreen({super.key});
   @override State<PlayerScreen> createState() => _PlayerScreenState();
 }
 
 class _PlayerScreenState extends State<PlayerScreen> {
+  bool _isSeeking = false;
+  double _seekPosition = 0;
+
   @override
   Widget build(BuildContext context) {
     final ctrl = context.watch<PlayerController>();
-    final accent = ctrl.accentColor;
+    final theme = context.watch<DynamicThemeService>();
+    final accent = theme.accentColor;
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
@@ -126,9 +129,20 @@ class _PlayerScreenState extends State<PlayerScreen> {
         final prog = dur.inMs > 0 ? pos.inMs / dur.inMs : 0.0;
         return Column(children: [
           Slider(
-            value: prog.clamp(0.0, 1.0),
-            onChanged: (v) => ctrl.seek(
-                Duration(milliseconds: (v * dur.inMs).round()))),
+            value: _isSeeking ? _seekPosition : prog.clamp(0.0, 1.0),
+            onChangeStart: (v) {
+              setState(() {
+                _isSeeking = true;
+                _seekPosition = v;
+              });
+            },
+            onChanged: (v) {
+              setState(() => _seekPosition = v);
+            },
+            onChangeEnd: (v) {
+              setState(() => _isSeeking = false);
+              ctrl.seek(Duration(milliseconds: (v * dur.inMs).round()));
+            }),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
@@ -178,6 +192,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       Consumer<EqualizerService>(
         builder: (_, eqSvc, __) {
           final active = eqSvc.isEnabled;
+          final available = eqSvc.isAvailable;
           return Container(
             decoration: active
                 ? BoxDecoration(
@@ -192,9 +207,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 : null,
             child: IconButton(
               icon: Icon(Icons.equalizer,
-                  color: active ? AuraColors.primary : AuraColors.textMuted),
-              tooltip: 'Ecualizador',
-              onPressed: () {
+                  color: !available ? AuraColors.textMuted.withOpacity(0.3)
+                      : active ? AuraColors.primary : AuraColors.textMuted),
+              tooltip: !available ? 'Ecualizador no disponible' : 'Ecualizador',
+              onPressed: !available ? null : () {
                 final song = context.read<PlayerController>().currentSong;
                 if (song == null) return;
                 Navigator.push(context, MaterialPageRoute(
@@ -286,7 +302,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   void _showSongInfo(BuildContext ctx, PlayerController ctrl) {
-    final s = ctrl.currentSong ?? widget.song;
+    final s = ctrl.currentSong;
+    if (s == null) return;
     showDialog(context: ctx, builder: (_) => AlertDialog(
       backgroundColor: AuraColors.surface,
       title: Text(s.title, style: const TextStyle(color: AuraColors.text)),

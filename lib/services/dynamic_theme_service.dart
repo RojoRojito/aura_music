@@ -1,10 +1,23 @@
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:on_audio_query/on_audio_query.dart';
 import 'package:palette_generator/palette_generator.dart';
 
-class DynamicThemeService {
+Future<Map<String, int>> _extractPaletteIsolate(Uint8List bytes) async {
+  final codec = await ui.instantiateImageCodec(bytes);
+  final frame = await codec.getNextFrame();
+  final image = frame.image;
+  final paletteGenerator = await PaletteGenerator.fromImage(image);
+  final dominant = paletteGenerator.dominantColor?.color.value ?? 0xFF7C4DFF;
+  final vibrant = paletteGenerator.vibrantColor?.color.value
+      ?? paletteGenerator.mutedColor?.color.value
+      ?? 0xFF00E5FF;
+  return {'dominant': dominant, 'accent': vibrant};
+}
+
+class DynamicThemeService extends ChangeNotifier {
   static DynamicThemeService? _instance;
   DynamicThemeService._();
 
@@ -37,18 +50,10 @@ class DynamicThemeService {
 
   Future<void> _extractPalette(Uint8List bytes) async {
     try {
-      final codec = await ui.instantiateImageCodec(bytes);
-      final frame = await codec.getNextFrame();
-      final image = frame.image;
-      final paletteGenerator = await PaletteGenerator.fromImage(image);
-      if (paletteGenerator.dominantColor != null) {
-        _dominantColor = paletteGenerator.dominantColor!.color;
-      }
-      if (paletteGenerator.vibrantColor != null) {
-        _accentColor = paletteGenerator.vibrantColor!.color;
-      } else if (paletteGenerator.mutedColor != null) {
-        _accentColor = paletteGenerator.mutedColor!.color;
-      }
+      final result = await compute(_extractPaletteIsolate, bytes);
+      _dominantColor = Color(result['dominant']!);
+      _accentColor = Color(result['accent']!);
+      notifyListeners();
     } catch (e) {
       debugPrint('Error creating palette: $e');
     }

@@ -14,6 +14,7 @@ class ScanResult {
 
 class MediaScanner {
   final OnAudioQuery _q = OnAudioQuery();
+  Map<int, Song>? _songCache;
 
   Future<bool> requestPermission() async {
     var s = await Permission.audio.request();
@@ -36,6 +37,7 @@ class MediaScanner {
           .where((s) => (s.duration ?? 0) > 30000)
           .map(_map)
           .toList();
+      _songCache = {for (final s in filtered) s.id: s};
       return ScanResult(songs: filtered, status: ScanStatus.success);
     } catch (e) {
       return ScanResult(songs: [], status: ScanStatus.error, errorMessage: e.toString());
@@ -66,13 +68,16 @@ class MediaScanner {
   }
 
   Future<Song?> getSongById(int songId) async {
+    if (_songCache != null) {
+      return _songCache![songId];
+    }
     final songs = await _q.querySongs(
       sortType: SongSortType.TITLE,
       orderType: OrderType.ASC_OR_SMALLER,
       uriType: UriType.EXTERNAL,
     );
-    final match = songs.where((s) => s.id == songId);
-    return match.isNotEmpty ? _map(match.first) : null;
+    _songCache = {for (final s in songs) s.id: _map(s)};
+    return _songCache![songId];
   }
 
   Song _map(SongModel s) => Song(

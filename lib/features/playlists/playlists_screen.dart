@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/repositories/playlist_repository.dart';
+import '../library/library_controller.dart';
 import 'playlist_detail_screen.dart';
 
 class PlaylistsScreen extends StatefulWidget {
@@ -13,25 +14,41 @@ class _PlaylistsScreenState extends State<PlaylistsScreen> {
   @override
   void initState() {
     super.initState();
-    context.read<PlaylistRepository>().loadPlaylists();
+    _loadPlaylists();
+  }
+
+  void _loadPlaylists() {
+    final libCtrl = context.read<LibraryController>();
+    final playlistRepo = context.read<PlaylistRepository>();
+    if (libCtrl.status == LibraryStatus.loaded && libCtrl.songs.isNotEmpty) {
+      final songCache = {for (final s in libCtrl.songs) s.id: s};
+      playlistRepo.loadPlaylistsResolved(songCache);
+    } else {
+      playlistRepo.loadPlaylists();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final repo = context.watch<PlaylistRepository>();
+    final bg = AuraColors.backgroundOf(context);
+    final txt = AuraColors.textOf(context);
+    final txtMuted = AuraColors.textMutedOf(context);
+    final surface = AuraColors.surfaceOf(context);
+    final surfaceHigh = AuraColors.surfaceHighOf(context);
     return Scaffold(
-      backgroundColor: AuraColors.background,
+      backgroundColor: bg,
       appBar: AppBar(
-        backgroundColor: AuraColors.background, elevation: 0,
-        title: const Text('Listas', style: TextStyle(
-            color: AuraColors.text, fontWeight: FontWeight.bold, fontSize: 22)),
+        backgroundColor: bg, elevation: 0,
+        title: Text('Listas', style: TextStyle(
+            color: txt, fontWeight: FontWeight.bold, fontSize: 22)),
       ),
       body: repo.playlists.isEmpty
         ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            const Icon(Icons.queue_music, color: AuraColors.textMuted, size: 64),
+            Icon(Icons.queue_music, color: txtMuted, size: 64),
             const SizedBox(height: 16),
-            const Text('Sin listas de reproduccion',
-                style: TextStyle(color: AuraColors.textMuted, fontSize: 15)),
+            Text('Sin listas de reproduccion',
+                style: TextStyle(color: txtMuted, fontSize: 15)),
             const SizedBox(height: 20),
             ElevatedButton.icon(
               onPressed: () => _showCreate(context),
@@ -49,16 +66,16 @@ class _PlaylistsScreenState extends State<PlaylistsScreen> {
                 leading: Container(
                   width: 48, height: 48,
                   decoration: BoxDecoration(
-                    color: AuraColors.surfaceHigh,
+                    color: surfaceHigh,
                     borderRadius: BorderRadius.circular(8)),
-                  child: const Icon(Icons.queue_music, color: AuraColors.primary)),
+                  child: Icon(Icons.queue_music, color: AuraColors.primary)),
                 title: Text(pl.name,
-                    style: const TextStyle(color: AuraColors.text)),
+                    style: TextStyle(color: txt)),
                 subtitle: Text('${pl.songCount} canciones',
-                    style: const TextStyle(color: AuraColors.textMuted, fontSize: 12)),
+                    style: TextStyle(color: txtMuted, fontSize: 12)),
                 trailing: IconButton(
-                  icon: const Icon(Icons.delete_outline, color: AuraColors.textMuted),
-                  onPressed: () => _confirmDelete(context, repo, pl)),
+                  icon: Icon(Icons.delete_outline, color: txtMuted),
+                  onPressed: () => _confirmDelete(context, repo, pl, surface, txt, txtMuted)),
                 onTap: () {
                   Navigator.push(context, MaterialPageRoute(
                     builder: (_) => PlaylistDetailScreen(playlist: pl)));
@@ -68,22 +85,22 @@ class _PlaylistsScreenState extends State<PlaylistsScreen> {
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showCreate(context),
         backgroundColor: AuraColors.primary,
-child: const Icon(Icons.add)),
+        child: const Icon(Icons.add)),
     );
   }
 
-  void _confirmDelete(BuildContext ctx, PlaylistRepository repo, pl) {
+  void _confirmDelete(BuildContext ctx, PlaylistRepository repo, pl, Color surface, Color txt, Color txtMuted) {
     showDialog(
       context: ctx,
       builder: (_) => AlertDialog(
-        backgroundColor: AuraColors.surface,
-        title: const Text('Eliminar lista', style: TextStyle(color: AuraColors.text)),
+        backgroundColor: surface,
+        title: Text('Eliminar lista', style: TextStyle(color: txt)),
         content: Text('¿Eliminar "${pl.name}"?',
-            style: const TextStyle(color: AuraColors.textMuted)),
+            style: TextStyle(color: txtMuted)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancelar', style: TextStyle(color: AuraColors.textMuted))),
+            child: Text('Cancelar', style: TextStyle(color: txtMuted))),
           TextButton(
             onPressed: () {
               repo.deletePlaylist(pl.id!);
@@ -97,20 +114,23 @@ child: const Icon(Icons.add)),
 
   void _showCreate(BuildContext ctx) {
     final ctrl = TextEditingController();
+    final surface = AuraColors.surfaceOf(ctx);
+    final txt = AuraColors.textOf(ctx);
+    final txtMuted = AuraColors.textMutedOf(ctx);
     showDialog(context: ctx, builder: (_) => AlertDialog(
-      backgroundColor: AuraColors.surface,
-      title: const Text('Nueva lista',
-          style: TextStyle(color: AuraColors.text)),
+      backgroundColor: surface,
+      title: Text('Nueva lista',
+          style: TextStyle(color: txt)),
       content: TextField(
         controller: ctrl, autofocus: true,
-        style: const TextStyle(color: AuraColors.text),
-        decoration: const InputDecoration(
+        style: TextStyle(color: txt),
+        decoration: InputDecoration(
           hintText: 'Nombre de la lista',
-          hintStyle: TextStyle(color: AuraColors.textMuted))),
+          hintStyle: TextStyle(color: txtMuted))),
       actions: [
         TextButton(onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancelar',
-                style: TextStyle(color: AuraColors.textMuted))),
+            child: Text('Cancelar',
+                style: TextStyle(color: txtMuted))),
         TextButton(
           onPressed: () {
             if (ctrl.text.isNotEmpty) {
@@ -118,7 +138,7 @@ child: const Icon(Icons.add)),
               Navigator.pop(ctx);
             }
           },
-          child: const Text('Crear',
+          child: Text('Crear',
               style: TextStyle(color: AuraColors.primary))),
       ],
     ));

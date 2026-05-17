@@ -4,12 +4,12 @@ import '../database/app_database.dart';
 import '../models/eq_config.dart';
 
 class EqRepository extends ChangeNotifier {
-  EqConfig? _currentConfig;
-  EqConfig? get currentConfig => _currentConfig;
+  final Map<int, EqConfig> _cache = {};
 
   Future<Database> get database => AppDatabase.instance.database;
 
   Future<EqConfig?> loadForSong(int songId) async {
+    if (_cache.containsKey(songId)) return _cache[songId]!;
     final db = await database;
     final maps = await db.query(
       'eq_configs',
@@ -17,9 +17,10 @@ class EqRepository extends ChangeNotifier {
       whereArgs: [songId],
     );
     if (maps.isEmpty) return null;
-    _currentConfig = EqConfig.fromMap(maps.first);
+    final config = EqConfig.fromMap(maps.first);
+    _cache[songId] = config;
     notifyListeners();
-    return _currentConfig;
+    return config;
   }
 
   Future<void> saveForSong(EqConfig config) async {
@@ -29,7 +30,7 @@ class EqRepository extends ChangeNotifier {
       config.toMap(),
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
-    _currentConfig = config;
+    _cache[config.songId] = config;
     notifyListeners();
   }
 
@@ -40,9 +41,7 @@ class EqRepository extends ChangeNotifier {
       where: 'song_id = ?',
       whereArgs: [songId],
     );
-    if (_currentConfig?.songId == songId) {
-      _currentConfig = null;
-    }
+    _cache.remove(songId);
     notifyListeners();
   }
 

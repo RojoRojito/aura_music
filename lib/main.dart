@@ -18,9 +18,6 @@ import 'services/dynamic_theme_service.dart';
 import 'services/equalizer_service.dart';
 import 'features/discover/recommendation_engine.dart';
 
-late AuraAudioHandler audioHandler;
-late EqualizerService equalizerService;
-
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -40,6 +37,7 @@ Future<void> main() async {
   final favoritesRepository = FavoritesRepository();
   await favoritesRepository.loadFavorites();
 
+  final AuraAudioHandler audioHandler;
   try {
     audioHandler = await AudioService.init(
       builder: () => AuraAudioHandler(),
@@ -55,12 +53,13 @@ Future<void> main() async {
     audioHandler = AuraAudioHandler();
   }
 
-  equalizerService = EqualizerService(eqRepository);
+  final equalizerService = EqualizerService(eqRepository);
 
   final playerController = PlayerController(audioHandler);
   await playerController.init(settingsController);
 
   final statsRepository = StatsRepository.instance;
+  await statsRepository.clearOldEvents(keepDays: 30);
   final recommendationEngine = RecommendationEngine(statsRepository);
   await recommendationEngine.compute();
 
@@ -96,7 +95,11 @@ Future<void> main() async {
       ChangeNotifierProvider(
           create: (c) => LibraryController(
               c.read<MediaScanner>(), c.read<PlayerController>())),
-      ChangeNotifierProvider(create: (_) => PlaylistRepository()),
+      ChangeNotifierProvider(create: (c) {
+        final repo = PlaylistRepository();
+        repo.loadPlaylists();
+        return repo;
+      }),
       ChangeNotifierProvider.value(value: favoritesRepository),
       ChangeNotifierProvider<EqRepository>(create: (_) => eqRepository),
       ChangeNotifierProvider<EqualizerService>.value(value: equalizerService),
