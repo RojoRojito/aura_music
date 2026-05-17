@@ -83,8 +83,10 @@ Future<void> main() async {
   };
 
   audioHandler.onAudioSessionId = (sessionId) {
+    debugPrint('[main] onAudioSessionId callback FIRED: sessionId=$sessionId');
     equalizerService.initSession(sessionId);
   };
+  debugPrint('[main] onAudioSessionId callback SET on handler');
 
   runApp(MultiProvider(
     providers: [

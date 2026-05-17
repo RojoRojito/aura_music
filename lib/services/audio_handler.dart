@@ -84,7 +84,13 @@ class AuraAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
         if (sessionId != null && sessionId != 0) {
           _sessionIdSent = true;
           debugPrint('[AudioHandler] sessionId VALIDO=$sessionId en intento $attempt');
-          onAudioSessionId?.call(sessionId);
+          debugPrint('[AudioHandler] onAudioSessionId callback is null: ${onAudioSessionId == null}');
+          try {
+            onAudioSessionId?.call(sessionId);
+            debugPrint('[AudioHandler] onAudioSessionId callback executed OK');
+          } catch (e) {
+            debugPrint('[AudioHandler] onAudioSessionId callback ERROR: $e');
+          }
           return;
         }
       } catch (e) {
