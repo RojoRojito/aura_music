@@ -173,6 +173,7 @@ class MainActivity : FlutterActivity() {
                                 dynamicsProcessing?.let { dp ->
                                     val limiter = DynamicsProcessing.Limiter(
                                         true,   // enabled
+                                        true,   // limiterEnabled
                                         1,      // linkGroup
                                         attack.toFloat(),
                                         release.toFloat(),
@@ -238,17 +239,14 @@ class MainActivity : FlutterActivity() {
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             try {
-                dynamicsProcessing = DynamicsProcessing.Builder()
-                    .setPreEqInUse(false)
-                    .setMbcInUse(false)
-                    .setPostEqInUse(false)
-                    .setLimiterInUse(true)
-                    .build()
+                dynamicsProcessing = DynamicsProcessing(false, false, false, false, true)
                 dynamicsProcessing!!.enabled = false
 
                 // Set default limiter params
                 val defaultLimiter = DynamicsProcessing.Limiter(
-                    true, 1,
+                    true,    // enabled
+                    true,    // limiterEnabled
+                    1,       // linkGroup
                     10.0f,   // attack ms
                     100.0f,  // release ms
                     4.0f,    // ratio
