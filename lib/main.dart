@@ -110,6 +110,7 @@ Future<void> main() async {
     ],
     child: Builder(builder: (context) {
       recEngineRef = context.read<RecommendationEngine>();
+      recEngineRef?.compute();
       return const AuraApp();
     }),
   ));

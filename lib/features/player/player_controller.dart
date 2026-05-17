@@ -83,6 +83,7 @@ class PlayerController extends ChangeNotifier {
 
   Future<void> playSong(Song s, {List<Song>? queue}) async {
     await _h.playSong(s, queue: queue);
+    notifyListeners();
   }
 
   Future<void> togglePlay() async {
@@ -91,14 +92,17 @@ class PlayerController extends ChangeNotifier {
     } else {
       await _h.play();
     }
+    notifyListeners();
   }
 
   Future<void> next() async {
     await _h.skipToNext();
+    notifyListeners();
   }
 
   Future<void> previous() async {
     await _h.skipToPrevious();
+    notifyListeners();
   }
   Future<void> seek(Duration p)    => _h.seek(p);
   Future<void> addToQueue(Song s)   => _h.addToQueue(s);
