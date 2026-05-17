@@ -25,7 +25,7 @@ jobs:
       - name: Setup Flutter SDK
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.27.0'
+          flutter-version: '3.24.0'
           channel: 'stable'
 
       - name: Clean and Regenerate Android
@@ -76,18 +76,22 @@ jobs:
           sed -i "s/kotlin_version = '[^']*'/kotlin_version = '1.9.22'/" android/build.gradle 2>/dev/null || true
           sed -i 's/ext.kotlin_version = "[^"]*"/ext.kotlin_version = "1.9.22"/' android/build.gradle 2>/dev/null || true
 
+          # 10. Force Kotlin version in gradle.properties
+          echo "kotlin.version=1.9.22" >> android/gradle.properties
+          echo "kotlin.jvm.target.validation.mode=warning" >> android/gradle.properties
+
           echo "=== settings.gradle AFTER patch ==="
           cat android/settings.gradle
-          echo "=== build.gradle AFTER patch (first 20 lines) ==="
-          head -20 android/build.gradle
+          echo "=== gradle.properties ==="
+          cat android/gradle.properties
 
-          # 10. Verify: list ALL MainActivity.kt files
+          # 11. Verify: list ALL MainActivity.kt files
           echo "=== ALL MainActivity.kt files ==="
           find . -name "MainActivity.kt" -type f
           echo "=== Content of our MainActivity.kt (first 5 lines) ==="
           head -5 android/app/src/main/kotlin/com/daviddev/aura_music/MainActivity.kt
 
-          # 11. Delete any flutter-generated MainActivity that could shadow ours
+          # 12. Delete any flutter-generated MainActivity that could shadow ours
           #     flutter create generates in com/example/ even with --org
           rm -rf android/app/src/main/kotlin/com/example/
 
