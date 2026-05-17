@@ -18,7 +18,7 @@
         android:requestLegacyExternalStorage="true">
 
         <activity
-            android:name="com.daviddev.aura_music.MainActivity"
+            android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
             android:theme="@style/LaunchTheme"
