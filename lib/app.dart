@@ -39,7 +39,6 @@ class _Shell extends StatefulWidget {
 class _ShellState extends State<_Shell> with TickerProviderStateMixin {
   int _idx = 0;
   late AnimationController _indicatorAnim;
-  late Animation<double> _indicatorScale;
 
   final List<Widget> _screens = const [
     ForYouScreen(),
@@ -63,9 +62,6 @@ class _ShellState extends State<_Shell> with TickerProviderStateMixin {
     _indicatorAnim = AnimationController(
       vsync: this,
       duration: AuraAnimation.fast,
-    );
-    _indicatorScale = Tween<double>(begin: 0.8, end: 1.0).animate(
-      CurvedAnimation(parent: _indicatorAnim, curve: AuraAnimation.spring),
     );
     _setupErrorListener();
   }

@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import '../theme/tokens/tokens.dart';
+import '../core/theme/tokens/tokens.dart';
 
 class AuraGlass extends StatelessWidget {
   final Widget child;
