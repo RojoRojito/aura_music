@@ -35,10 +35,12 @@ class AuraAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   Stream<void> get onQueueChanged => _queueChangeController.stream;
 
   AuraAudioHandler() {
+    debugPrint('[AudioHandler] Constructor called');
     _init();
   }
 
   void _init() {
+    debugPrint('[AudioHandler] _init() called');
     _player.playbackEventStream.listen((event) {
       playbackState.add(playbackState.value.copyWith(
         controls: [
@@ -64,7 +66,9 @@ class AuraAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     });
 
     _player.processingStateStream.listen((state) {
+      debugPrint('[AudioHandler] processingState=$state, _sessionIdSent=$_sessionIdSent');
       if (state == ProcessingState.ready && !_sessionIdSent) {
+        debugPrint('[AudioHandler] ProcessingState.ready → calling _checkAudioSessionId');
         _checkAudioSessionId();
       }
       if (state == ProcessingState.completed && !_isSkipping) skipToNext();
@@ -183,6 +187,7 @@ class AuraAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
   Future<void> _loadCurrent() async {
     if (_queue.isEmpty) return;
+    debugPrint('[AudioHandler] _loadCurrent: song=${_queue[_currentIndex].title}');
     _sessionIdSent = false;
     final s = _queue[_currentIndex];
     mediaItem.add(MediaItem(
@@ -194,8 +199,11 @@ class AuraAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       artUri: s.albumArtUri != null ? Uri.parse(s.albumArtUri!) : null,
     ));
     try {
+      debugPrint('[AudioHandler] _loadCurrent: setAudioSource...');
       await _player.setAudioSource(AudioSource.uri(Uri.parse(s.uri)));
+      debugPrint('[AudioHandler] _loadCurrent: play()...');
       await _player.play();
+      debugPrint('[AudioHandler] _loadCurrent: play() started, onSongChanged...');
       onSongChanged?.call(s.id);
     } catch (e) {
       _errorController.add(AudioError(
