@@ -45,6 +45,7 @@ class PlayerController extends ChangeNotifier {
     _queueChangeSub?.cancel();
     _queueChangeSub = _h.onQueueChanged.listen((_) {
       _persistence.saveQueueState(_h.songQueue, _h.currentIndex, _h.player.position);
+      notifyListeners();
     });
   }
 
@@ -99,8 +100,14 @@ class PlayerController extends ChangeNotifier {
   Future<void> seek(Duration p)    => _h.seek(p);
   Future<void> addToQueue(Song s)   => _h.addToQueue(s);
   Future<void> playNext(Song s)     => _h.playNext(s);
-  Future<void> setRepeat(LoopMode m) => _h.setRepeatLoopMode(m);
-  Future<void> setShuffle(bool e)  => _h.setShuffleEnabled(e);
+  Future<void> setRepeat(LoopMode m) async {
+    await _h.setRepeatLoopMode(m);
+    notifyListeners();
+  }
+  Future<void> setShuffle(bool e) async {
+    await _h.setShuffleEnabled(e);
+    notifyListeners();
+  }
   Future<void> setSpeed(double s)   => _h.setSpeed(s);
 
   @override
