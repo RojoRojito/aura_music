@@ -75,14 +75,14 @@ class AuraAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     for (int attempt = 0; attempt < 10; attempt++) {
       await Future.delayed(const Duration(milliseconds: 500));
       try {
-        final sessionId = _player.androidAudioSessionId;
+        final sessionId = await _player.androidAudioSessionId;
+        debugPrint('[AudioHandler] intento $attempt: sessionId=$sessionId');
         if (sessionId != null && sessionId != 0) {
           _sessionIdSent = true;
-          debugPrint('[AudioHandler] sessionId=$sessionId en intento $attempt');
+          debugPrint('[AudioHandler] sessionId VALIDO=$sessionId en intento $attempt');
           onAudioSessionId?.call(sessionId);
           return;
         }
-        debugPrint('[AudioHandler] intento $attempt: sessionId=$sessionId (nulo o cero)');
       } catch (e) {
         debugPrint('[AudioHandler] intento $attempt error: $e');
       }
