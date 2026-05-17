@@ -74,20 +74,18 @@ class AuraAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       if (state == ProcessingState.completed && !_isSkipping) skipToNext();
     });
 
-    _player.androidAudioSessionId?.then((sessionId) {
-      debugPrint('[AudioHandler] androidAudioSessionId: $sessionId');
-      if (sessionId != null && sessionId != 0 && !_sessionIdSent) {
-        _sessionIdSent = true;
-        debugPrint('[AudioHandler] sessionId VALIDO=$sessionId');
-        debugPrint('[AudioHandler] onAudioSessionId callback is null: ${onAudioSessionId == null}');
-        try {
-          onAudioSessionId?.call(sessionId);
-          debugPrint('[AudioHandler] onAudioSessionId callback executed OK');
-        } catch (e) {
-          debugPrint('[AudioHandler] onAudioSessionId callback ERROR: $e');
-        }
+    final sessionId = _player.androidAudioSessionId;
+    debugPrint('[AudioHandler] androidAudioSessionId: $sessionId');
+    if (sessionId != null && sessionId != 0 && !_sessionIdSent) {
+      _sessionIdSent = true;
+      debugPrint('[AudioHandler] sessionId VALIDO=$sessionId');
+      try {
+        onAudioSessionId?.call(sessionId);
+        debugPrint('[AudioHandler] onAudioSessionId callback executed OK');
+      } catch (e) {
+        debugPrint('[AudioHandler] onAudioSessionId callback ERROR: $e');
       }
-    });
+    }
   }
 
   Stream<PositionData> get positionDataStream =>
