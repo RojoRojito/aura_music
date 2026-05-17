@@ -11,7 +11,6 @@ class Song {
   final String? genre;
   final int? year;
   final int? trackNumber;
-  final bool isFavorite;
 
   Song({
     required this.id,
@@ -26,7 +25,6 @@ class Song {
     this.genre,
     this.year,
     this.trackNumber,
-    this.isFavorite = false,
   });
 
   String get durationFormatted {

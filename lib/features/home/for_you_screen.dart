@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
+import '../../widgets/loading_indicator.dart';
 import '../../data/models/song.dart';
 import '../../data/models/song_stats.dart';
 import '../../services/media_scanner.dart';
@@ -92,8 +93,7 @@ class _SongListState extends State<_SongList> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Center(
-          child: CircularProgressIndicator(color: AuraColors.primary));
+      return const AuraLoadingIndicator();
     }
     if (_songs.isEmpty) {
       return Center(

@@ -17,9 +17,11 @@ class EqualizerService extends ChangeNotifier {
   int _nativeBandCount = 5;
   List<int> _nativeBandFrequencies = [];
   List<int> _bandMapping = []; // _bandMapping[uiBand] = nativeBand
+  bool _isAvailable = false;
 
   int get nativeBandCount => _nativeBandCount;
   List<int> get nativeBandFrequencies => _nativeBandFrequencies;
+  bool get isAvailable => _isAvailable;
 
   EqualizerService(this._eqRepository);
 
@@ -37,6 +39,7 @@ class EqualizerService extends ChangeNotifier {
         _nativeBandFrequencies = freqsRaw.map((e) => (e as num).toInt()).toList();
       }
       _buildBandMapping();
+      _isAvailable = true;
       debugPrint('[EQ] initSession OK, nativeBandCount=$_nativeBandCount, '
           'nativeFreqs=$_nativeBandFrequencies, mapping=$_bandMapping');
       if (_currentConfig != null) {
@@ -44,8 +47,10 @@ class EqualizerService extends ChangeNotifier {
         debugPrint('[EQ] config reaplicada');
       }
     } catch (e) {
+      _isAvailable = false;
       debugPrint('[EQ] initSession ERROR: $e');
     }
+    notifyListeners();
   }
 
   void _buildBandMapping() {

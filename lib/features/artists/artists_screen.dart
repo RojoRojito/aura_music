@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:on_audio_query/on_audio_query.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
+import '../../widgets/loading_indicator.dart';
 import '../../services/media_scanner.dart';
 import '../../data/models/song.dart';
 import '../player/player_controller.dart';
@@ -29,19 +30,35 @@ class _ArtistsScreenState extends State<ArtistsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bg = AuraColors.backgroundOf(context);
+    final txt = AuraColors.textOf(context);
+    final txtMuted = AuraColors.textMutedOf(context);
     return Scaffold(
-      backgroundColor: AuraColors.background,
+      backgroundColor: bg,
       appBar: AppBar(
-        backgroundColor: AuraColors.background,
+        backgroundColor: bg,
         elevation: 0,
-        title: const Text('Artistas', style: TextStyle(
-            color: AuraColors.text, fontWeight: FontWeight.bold, fontSize: 22)),
+        title: Text('Artistas', style: TextStyle(
+            color: txt, fontWeight: FontWeight.bold, fontSize: 22)),
       ),
       body: _loading
-        ? const Center(child: CircularProgressIndicator(color: AuraColors.primary))
+        ? const AuraLoadingIndicator()
         : _artists.isEmpty
-          ? const Center(child: Text('No hay artistas',
-              style: TextStyle(color: AuraColors.textMuted)))
+          ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Icon(Icons.person_outline, color: txtMuted, size: 64),
+              const SizedBox(height: 16),
+              Text('No hay artistas', style: TextStyle(color: txtMuted, fontSize: 16)),
+              const SizedBox(height: 8),
+              Text('Escanea tu biblioteca para encontrar artistas',
+                  style: TextStyle(color: txtMuted, fontSize: 13)),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: _load,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Escaneear'),
+                style: ElevatedButton.styleFrom(backgroundColor: AuraColors.primary),
+              ),
+            ]))
           : ListView.builder(
               padding: const EdgeInsets.only(bottom: 160),
               itemCount: _artists.length,
@@ -56,6 +73,9 @@ class _ArtistTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final surfaceHigh = AuraColors.surfaceHighOf(context);
+    final txt = AuraColors.textOf(context);
+    final txtMuted = AuraColors.textMutedOf(context);
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       leading: ClipRRect(
@@ -64,13 +84,13 @@ class _ArtistTile extends StatelessWidget {
           child: QueryArtworkWidget(
             id: artist.id, type: ArtworkType.ARTIST,
             nullArtworkWidget: Container(
-              color: AuraColors.surfaceHigh,
-              child: const Icon(Icons.person, color: AuraColors.primary))))),
+              color: surfaceHigh,
+              child: Icon(Icons.person, color: AuraColors.primary))))),
       title: Text(artist.artist.isNotEmpty ? artist.artist : 'Artista desconocido',
           maxLines: 1, overflow: TextOverflow.ellipsis,
-          style: const TextStyle(color: AuraColors.text, fontSize: 15)),
+          style: TextStyle(color: txt, fontSize: 15)),
       subtitle: Text('${artist.numberOfTracks} canciones',
-          style: const TextStyle(color: AuraColors.textMuted, fontSize: 12)),
+          style: TextStyle(color: txtMuted, fontSize: 12)),
       onTap: () => _showArtistDetail(context),
     );
   }
@@ -109,31 +129,35 @@ class _ArtistDetailScreenState extends State<_ArtistDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final ctrl = context.watch<PlayerController>();
+    final bg = AuraColors.backgroundOf(context);
+    final txt = AuraColors.textOf(context);
+    final txtMuted = AuraColors.textMutedOf(context);
+    final surfaceHigh = AuraColors.surfaceHighOf(context);
     return Scaffold(
-      backgroundColor: AuraColors.background,
+      backgroundColor: bg,
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
-            backgroundColor: AuraColors.background,
+            backgroundColor: bg,
             expandedHeight: 280,
             pinned: true,
             flexibleSpace: FlexibleSpaceBar(
               title: Text(widget.artist.artist.isNotEmpty ? widget.artist.artist : 'Artista',
-                  style: const TextStyle(color: AuraColors.text, fontSize: 16),
+                  style: TextStyle(color: txt, fontSize: 16),
                   maxLines: 1, overflow: TextOverflow.ellipsis),
               background: Stack(children: [
                 Positioned.fill(
                   child: QueryArtworkWidget(
                     id: widget.artist.id, type: ArtworkType.ARTIST,
                     nullArtworkWidget: Container(
-                      color: AuraColors.surfaceHigh,
-                      child: const Icon(Icons.person, color: AuraColors.primary, size: 80)))),
+                      color: surfaceHigh,
+                      child: Icon(Icons.person, color: AuraColors.primary, size: 80)))),
                 Positioned.fill(
                   child: Container(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                        colors: [Colors.transparent, AuraColors.background.withOpacity(0.8)])))),
+                        colors: [Colors.transparent, bg.withOpacity(0.8)])))),
               ]),
             ),
           ),
@@ -142,7 +166,7 @@ class _ArtistDetailScreenState extends State<_ArtistDetailScreen> {
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
               child: Row(children: [
                 Text('${_songs.length} canciones • ${_albums.length} albumes',
-                    style: const TextStyle(color: AuraColors.textMuted, fontSize: 13)),
+                    style: TextStyle(color: txtMuted, fontSize: 13)),
               ]))),
           SliverToBoxAdapter(
             child: Padding(
@@ -157,11 +181,11 @@ class _ArtistDetailScreenState extends State<_ArtistDetailScreen> {
           const SliverToBoxAdapter(child: SizedBox(height: 16)),
           _loading
             ? const SliverFillRemaining(
-                child: Center(child: CircularProgressIndicator(color: AuraColors.primary)))
+                child: const AuraLoadingIndicator())
             : _songs.isEmpty
-              ? const SliverFillRemaining(
+              ? SliverFillRemaining(
                   child: Center(child: Text('Sin canciones',
-                      style: TextStyle(color: AuraColors.textMuted))))
+                      style: TextStyle(color: txtMuted))))
               : SliverList(
                   delegate: SliverChildBuilderDelegate(
                     (ctx, i) => SongTile(

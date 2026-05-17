@@ -21,6 +21,17 @@ class PlaylistRepository extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> loadPlaylistsResolved(Map<int, Song> songCache) async {
+    final db = await database;
+    final maps = await db.query('playlists', orderBy: 'created_at DESC');
+    _playlists = [];
+    for (final m in maps) {
+      final songs = await _getSongsResolved(m['id'] as int, songCache);
+      _playlists.add(Playlist.fromMap(m).copyWith(songs: songs));
+    }
+    notifyListeners();
+  }
+
   Future<List<Song>> _getSongs(int plId) async {
     final db = await database;
     final maps = await db.query('playlist_songs',
@@ -29,11 +40,36 @@ class PlaylistRepository extends ChangeNotifier {
       id: m['song_id'] as int,
       title: m['song_title'] as String,
       artist: m['song_artist'] as String,
-      album: '',
+      album: (m['song_album'] as String?) ?? '',
       uri: m['song_uri'] as String,
       duration: m['song_duration'] as int,
       albumId: m['album_id'] as int?,
     )).toList();
+  }
+
+  Future<List<Song>> _getSongsResolved(int plId, Map<int, Song> songCache) async {
+    final db = await database;
+    final maps = await db.query('playlist_songs',
+        where: 'playlist_id = ?', whereArgs: [plId], orderBy: 'position ASC');
+    final songs = <Song>[];
+    for (final m in maps) {
+      final songId = m['song_id'] as int;
+      final cached = songCache[songId];
+      if (cached != null) {
+        songs.add(cached);
+      } else {
+        songs.add(Song(
+          id: songId,
+          title: m['song_title'] as String,
+          artist: m['song_artist'] as String,
+          album: (m['song_album'] as String?) ?? '',
+          uri: m['song_uri'] as String,
+          duration: m['song_duration'] as int,
+          albumId: m['album_id'] as int?,
+        ));
+      }
+    }
+    return songs;
   }
 
   Future<void> createPlaylist(String name) async {
@@ -57,8 +93,9 @@ class PlaylistRepository extends ChangeNotifier {
     await db.insert('playlist_songs', {
       'playlist_id': plId, 'song_id': song.id,
       'song_title': song.title, 'song_artist': song.artist,
-      'song_uri': song.uri, 'song_duration': song.duration,
-      'album_id': song.albumId, 'position': count,
+      'song_album': song.album, 'song_uri': song.uri,
+      'song_duration': song.duration, 'album_id': song.albumId,
+      'position': count,
     }, conflictAlgorithm: ConflictAlgorithm.ignore);
     await loadPlaylists();
   }

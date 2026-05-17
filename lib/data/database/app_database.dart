@@ -1,6 +1,19 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
+const int _currentVersion = 3;
+
+typedef Migration = Future<void> Function(Database db, int from, int to);
+
+final Map<int, Migration> _migrations = {
+  2: (db, from, to) async {
+    // Add foreign key constraints support (enforced via PRAGMA in onOpen)
+  },
+  3: (db, from, to) async {
+    await db.execute('ALTER TABLE playlist_songs ADD COLUMN song_album TEXT DEFAULT ""');
+  },
+};
+
 class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
   AppDatabase._();
@@ -25,6 +38,7 @@ class AppDatabase {
          song_id INTEGER,
          song_title TEXT,
          song_artist TEXT,
+         song_album TEXT DEFAULT '',
          song_uri TEXT,
          song_duration INTEGER,
          album_id INTEGER,
@@ -61,26 +75,22 @@ class AppDatabase {
     final path = join(await getDatabasesPath(), 'aura.db');
     return openDatabase(
       path,
-      version: 1,
+      version: _currentVersion,
       onCreate: (db, _) async {
         for (final sql in _createStatements) {
           await db.execute(sql);
         }
       },
       onUpgrade: (db, oldVersion, newVersion) async {
-        // Future migrations go here, e.g.:
-        // if (oldVersion < 2) { await db.execute('ALTER TABLE ...'); }
-        // As safety net, ensure all tables exist:
-        for (final sql in _createStatements) {
-          await db.execute(sql);
+        for (var v = oldVersion + 1; v <= newVersion; v++) {
+          final migration = _migrations[v];
+          if (migration != null) {
+            await migration(db, oldVersion, newVersion);
+          }
         }
       },
       onOpen: (db) async {
-        // Defensive: ensure all tables exist even if onCreate/onUpgrade
-        // somehow missed them (manual DB edits, failed migration, etc.)
-        for (final sql in _createStatements) {
-          await db.execute(sql);
-        }
+        await db.execute('PRAGMA foreign_keys = ON');
       },
     );
   }

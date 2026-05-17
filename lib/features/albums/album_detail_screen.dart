@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:on_audio_query/on_audio_query.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
+import '../../widgets/loading_indicator.dart';
 import '../../data/models/song.dart';
 import '../../services/media_scanner.dart';
 import '../player/player_controller.dart';
@@ -84,7 +85,7 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
           const SliverToBoxAdapter(child: SizedBox(height: 16)),
           _loading
             ? const SliverFillRemaining(
-                child: Center(child: CircularProgressIndicator(color: AuraColors.primary)))
+                child: const AuraLoadingIndicator())
             : _songs.isEmpty
               ? const SliverFillRemaining(
                   child: Center(child: Text('Sin canciones',

@@ -25,6 +25,28 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
   @override
   Widget build(BuildContext context) {
     final eqService = context.watch<EqualizerService>();
+    if (!eqService.isAvailable) {
+      return Scaffold(
+        backgroundColor: AuraColors.backgroundOf(context),
+        appBar: AppBar(
+          backgroundColor: Colors.transparent, elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new, color: AuraColors.text, size: 20),
+            onPressed: () => Navigator.pop(context)),
+          title: const Text('Ecualizador', style: TextStyle(color: AuraColors.text, fontWeight: FontWeight.bold)),
+        ),
+        body: const Center(child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.equalizer, color: AuraColors.textMuted, size: 64),
+            SizedBox(height: 16),
+            Text('Ecualizador no disponible', style: TextStyle(color: AuraColors.textMuted, fontSize: 16)),
+            SizedBox(height: 8),
+            Text('Tu dispositivo no soporta ecualización nativa', style: TextStyle(color: AuraColors.textMuted, fontSize: 13)),
+          ],
+        )),
+      );
+    }
     final config = eqService.currentConfig;
     final isEnabled = eqService.isEnabled;
 

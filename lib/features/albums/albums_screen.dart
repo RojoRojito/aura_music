@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:on_audio_query/on_audio_query.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
+import '../../widgets/loading_indicator.dart';
 import '../../services/media_scanner.dart';
 import 'album_detail_screen.dart';
 
@@ -27,19 +28,35 @@ class _AlbumsScreenState extends State<AlbumsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bg = AuraColors.backgroundOf(context);
+    final txt = AuraColors.textOf(context);
+    final txtMuted = AuraColors.textMutedOf(context);
     return Scaffold(
-      backgroundColor: AuraColors.background,
+      backgroundColor: bg,
       appBar: AppBar(
-        backgroundColor: AuraColors.background,
+        backgroundColor: bg,
         elevation: 0,
-        title: const Text('Albums', style: TextStyle(
-            color: AuraColors.text, fontWeight: FontWeight.bold, fontSize: 22)),
+        title: Text('Albums', style: TextStyle(
+            color: txt, fontWeight: FontWeight.bold, fontSize: 22)),
       ),
       body: _loading
-        ? const Center(child: CircularProgressIndicator(color: AuraColors.primary))
+        ? const AuraLoadingIndicator()
         : _albums.isEmpty
-          ? const Center(child: Text('No hay albums',
-              style: TextStyle(color: AuraColors.textMuted)))
+          ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Icon(Icons.album_outlined, color: txtMuted, size: 64),
+              const SizedBox(height: 16),
+              Text('No hay albums', style: TextStyle(color: txtMuted, fontSize: 16)),
+              const SizedBox(height: 8),
+              Text('Escanea tu biblioteca para encontrar albums',
+                  style: TextStyle(color: txtMuted, fontSize: 13)),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: _load,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Escaneear'),
+                style: ElevatedButton.styleFrom(backgroundColor: AuraColors.primary),
+              ),
+            ]))
           : GridView.builder(
               padding: const EdgeInsets.all(12),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -57,12 +74,16 @@ class _AlbumCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final surface = AuraColors.surfaceOf(context);
+    final surfaceHigh = AuraColors.surfaceHighOf(context);
+    final txt = AuraColors.textOf(context);
+    final txtMuted = AuraColors.textMutedOf(context);
     return GestureDetector(
       onTap: () => Navigator.push(context, MaterialPageRoute(
         builder: (_) => AlbumDetailScreen(album: album))),
       child: Container(
         decoration: BoxDecoration(
-          color: AuraColors.surface,
+          color: surface,
           borderRadius: BorderRadius.circular(12)),
         child: Column(children: [
           Expanded(child: ClipRRect(
@@ -70,16 +91,16 @@ class _AlbumCard extends StatelessWidget {
             child: QueryArtworkWidget(
               id: album.id, type: ArtworkType.ALBUM,
               nullArtworkWidget: Container(
-                color: AuraColors.surfaceHigh,
-                child: const Icon(Icons.album, color: AuraColors.primary, size: 48))))),
+                color: surfaceHigh,
+                child: Icon(Icons.album, color: AuraColors.primary, size: 48))))),
           Padding(
             padding: const EdgeInsets.all(8),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(album.album, maxLines: 1, overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: AuraColors.text,
+                  style: TextStyle(color: txt,
                       fontSize: 12, fontWeight: FontWeight.w600)),
               Text(album.artist ?? '', maxLines: 1, overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: AuraColors.textMuted, fontSize: 11)),
+                  style: TextStyle(color: txtMuted, fontSize: 11)),
             ])),
         ]),
       ),

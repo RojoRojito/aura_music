@@ -12,9 +12,11 @@ class PlayerController extends ChangeNotifier {
   final StatePersistenceService _persistence = StatePersistenceService();
   StreamSubscription<void>? _sleepTimerSub;
   StreamSubscription<void>? _queueChangeSub;
-  StreamSubscription<bool>? _playingSub;
-  bool _isPlaying = false;
+  StreamSubscription<AudioError>? _errorSub;
+  final _errorController = StreamController<AudioError>.broadcast();
   bool _initialized = false;
+
+  Stream<AudioError> get errorStream => _errorController.stream;
 
   PlayerController(this._h);
 
@@ -26,6 +28,7 @@ class PlayerController extends ChangeNotifier {
     _setupSleepTimer(settings);
     _setupQueuePersistence();
     _setupPlayingListener();
+    _setupErrorListener();
     _restoreQueueIfNeeded();
     
     if (settings.playbackSpeed != 1.0) {
@@ -50,10 +53,13 @@ class PlayerController extends ChangeNotifier {
   }
 
   void _setupPlayingListener() {
-    _playingSub?.cancel();
-    _playingSub = _h.playingStream.listen((playing) {
-      _isPlaying = playing;
-      notifyListeners();
+    _h.playingStream.listen((_) => notifyListeners());
+  }
+
+  void _setupErrorListener() {
+    _errorSub?.cancel();
+    _errorSub = _h.errorStream.listen((error) {
+      _errorController.add(error);
     });
   }
 
@@ -66,7 +72,7 @@ class PlayerController extends ChangeNotifier {
   }
 
   Song? get currentSong        => _h.currentSong;
-  bool get isPlaying           => _isPlaying;
+  bool get isPlaying           => _h.player.playing;
   LoopMode get loopMode        => _h.player.loopMode;
   bool get shuffleEnabled      => _h.player.shuffleModeEnabled;
   Stream<PositionData> get pos => _h.positionDataStream;
@@ -77,11 +83,10 @@ class PlayerController extends ChangeNotifier {
 
   Future<void> playSong(Song s, {List<Song>? queue}) async {
     await _h.playSong(s, queue: queue);
-    notifyListeners();
   }
 
   Future<void> togglePlay() async {
-    if (_isPlaying) {
+    if (_h.player.playing) {
       await _h.pause();
     } else {
       await _h.play();
@@ -90,12 +95,10 @@ class PlayerController extends ChangeNotifier {
 
   Future<void> next() async {
     await _h.skipToNext();
-    notifyListeners();
   }
 
   Future<void> previous() async {
     await _h.skipToPrevious();
-    notifyListeners();
   }
   Future<void> seek(Duration p)    => _h.seek(p);
   Future<void> addToQueue(Song s)   => _h.addToQueue(s);
@@ -114,7 +117,8 @@ class PlayerController extends ChangeNotifier {
   void dispose() {
     _sleepTimerSub?.cancel();
     _queueChangeSub?.cancel();
-    _playingSub?.cancel();
+    _errorSub?.cancel();
+    _errorController.close();
     super.dispose();
   }
 }
