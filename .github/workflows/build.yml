@@ -86,6 +86,15 @@ jobs:
       - name: Run Analyzer
         run: flutter analyze --no-fatal-infos
 
+      - name: Debug - Verify MainActivity.kt location
+        run: |
+          echo "=== Kotlin sources ==="
+          find android/app/src/main/kotlin -name "*.kt" -type f
+          echo "=== build.gradle namespace/applicationId ==="
+          grep -E "namespace|applicationId" android/app/build.gradle || true
+          echo "=== settings.gradle ==="
+          grep "kotlin" android/settings.gradle || true
+
       - name: Build APK
         run: flutter build apk --release
         env:
