@@ -76,8 +76,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   Widget _buildBody(LibraryController ctrl) {
     final txtMuted = AuraColors.textMutedOf(context);
-    final txt = AuraColors.textOf(context);
-    final surfaceHigh = AuraColors.surfaceHighOf(context);
     switch (ctrl.status) {
       case LibraryStatus.loading:
         return const AuraLoadingIndicator();
