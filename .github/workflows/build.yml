@@ -68,10 +68,16 @@ jobs:
           # Also patch build.gradle if it has kotlin_version
           sed -i "s/kotlin_version = '[^']*'/kotlin_version = '1.9.22'/" android/build.gradle 2>/dev/null || true
           sed -i 's/ext.kotlin_version = "[^"]*"/ext.kotlin_version = "1.9.22"/' android/build.gradle 2>/dev/null || true
-          echo "=== settings.gradle ==="
-          grep kotlin android/settings.gradle
-          echo "=== build.gradle kotlin ==="
-          grep -i kotlin android/build.gradle 2>/dev/null || echo "no build.gradle"
+
+          # 10. Verify: list ALL MainActivity.kt files
+          echo "=== ALL MainActivity.kt files ==="
+          find . -name "MainActivity.kt" -type f
+          echo "=== Content of our MainActivity.kt (first 5 lines) ==="
+          head -5 android/app/src/main/kotlin/com/daviddev/aura_music/MainActivity.kt
+
+          # 11. Delete any flutter-generated MainActivity that could shadow ours
+          #     flutter create generates in com/example/ even with --org
+          rm -rf android/app/src/main/kotlin/com/example/
 
       - name: Accept Android Licenses
         run: yes | flutter doctor --android-licenses
