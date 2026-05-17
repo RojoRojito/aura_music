@@ -92,7 +92,7 @@ class _ArtistTile extends StatelessWidget {
 
 class _ArtistDetailScreen extends StatefulWidget {
   final ArtistModel artist;
-  const _ArtistDetailScreen({super.key, required this.artist});
+  const _ArtistDetailScreen({required this.artist});
 
   @override State<_ArtistDetailScreen> createState() => _ArtistDetailScreenState();
 }
