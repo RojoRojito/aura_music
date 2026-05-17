@@ -32,47 +32,38 @@ jobs:
         run: |
           # 1. Respaldar Manifest
           cp android/app/src/main/AndroidManifest.xml AndroidManifest.xml.bak
-          
-          # 2. Respaldar archivos Kotlin nativos (nuestro DSP)
+
+          # 2. Respaldar archivos Kotlin nativos
           mkdir -p native_backup
           cp -r android/app/src/main/kotlin/com/daviddev/aura_music/ native_backup/ 2>/dev/null || true
-          cp android/app/build.gradle native_backup/ 2>/dev/null || true
-          
+
           # 3. Respaldar just_audio_local
           if [ -d "just_audio_local" ]; then
             cp -r just_audio_local just_audio_local.bak
           fi
-          
+
           # 4. Borrar carpeta android
           rm -rf android
-          
+
           # 5. Regenerar desde cero con org correcto
           flutter create . --platforms android --org com.daviddev
-          
+
           # 6. Restaurar Manifest
           mkdir -p android/app/src/main/
           cp AndroidManifest.xml.bak android/app/src/main/AndroidManifest.xml
-          
-          # 7. Restaurar archivos Kotlin nativos
+
+          # 7. Restaurar archivos Kotlin nativos (overwrite generated ones)
           if [ -d "native_backup/com/daviddev/aura_music" ]; then
             mkdir -p android/app/src/main/kotlin/com/daviddev/aura_music/
             cp -r native_backup/com/daviddev/aura_music/* android/app/src/main/kotlin/com/daviddev/aura_music/
           fi
-          
+
           # 8. Restaurar just_audio_local
           if [ -d "just_audio_local.bak" ]; then
             cp -r just_audio_local.bak just_audio_local
           fi
 
-      - name: Restore Gradle Kotlin version
-        run: |
-          # Parchear Kotlin en settings.gradle
-          sed -i 's/id "org.jetbrains.kotlin.android" version "[^"]*"/id "org.jetbrains.kotlin.android" version "1.9.22"/' android/settings.gradle
-
-          # Parchear Kotlin en build.gradle si existe
-          if [ -f android/build.gradle ]; then
-            sed -i "s/ext.kotlin_version = '[^']*'/ext.kotlin_version = '1.9.22'/" android/build.gradle
-          fi
+          # 9. NO parchear Kotlin — usar la version que flutter create genera
 
       - name: Accept Android Licenses
         run: yes | flutter doctor --android-licenses
@@ -85,15 +76,6 @@ jobs:
 
       - name: Run Analyzer
         run: flutter analyze --no-fatal-infos
-
-      - name: Debug - Verify MainActivity.kt location
-        run: |
-          echo "=== Kotlin sources ==="
-          find android/app/src/main/kotlin -name "*.kt" -type f
-          echo "=== build.gradle namespace/applicationId ==="
-          grep -E "namespace|applicationId" android/app/build.gradle || true
-          echo "=== settings.gradle ==="
-          grep "kotlin" android/settings.gradle || true
 
       - name: Build APK
         run: flutter build apk --release
