@@ -46,8 +46,8 @@ jobs:
           # 4. Borrar carpeta android
           rm -rf android
           
-          # 5. Regenerar desde cero
-          flutter create . --platforms android
+          # 5. Regenerar desde cero con org correcto
+          flutter create . --platforms android --org com.daviddev
           
           # 6. Restaurar Manifest
           mkdir -p android/app/src/main/
@@ -64,7 +64,7 @@ jobs:
             cp -r just_audio_local.bak just_audio_local
           fi
 
-      - name: Restore Gradle Kotlin version and namespace
+      - name: Restore Gradle Kotlin version
         run: |
           # Parchear Kotlin en settings.gradle
           sed -i 's/id "org.jetbrains.kotlin.android" version "[^"]*"/id "org.jetbrains.kotlin.android" version "1.9.22"/' android/settings.gradle
@@ -73,10 +73,6 @@ jobs:
           if [ -f android/build.gradle ]; then
             sed -i "s/ext.kotlin_version = '[^']*'/ext.kotlin_version = '1.9.22'/" android/build.gradle
           fi
-
-          # Parchear namespace y applicationId para que coincida con nuestro paquete Kotlin
-          sed -i 's/namespace = "com.example.aura_music"/namespace = "com.daviddev.aura_music"/' android/app/build.gradle
-          sed -i 's/applicationId = "com.example.aura_music"/applicationId = "com.daviddev.aura_music"/' android/app/build.gradle
 
       - name: Accept Android Licenses
         run: yes | flutter doctor --android-licenses
