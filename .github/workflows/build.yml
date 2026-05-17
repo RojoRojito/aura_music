@@ -68,16 +68,21 @@ jobs:
             cp -r just_audio_local.bak just_audio_local
           fi
 
-          # 9. Force Kotlin 1.9.22 in settings.gradle
+          # 9. Force Kotlin 1.9.22 everywhere
           sed -i 's/org.jetbrains.kotlin.android" version "[^"]*"/org.jetbrains.kotlin.android" version "1.9.22"/' android/settings.gradle
           sed -i "s/org.jetbrains.kotlin.android' version '[^']*'/org.jetbrains.kotlin.android' version '1.9.22'/" android/settings.gradle
+
+          # Add ext.kotlin_version to root build.gradle for Flutter Gradle plugin
+          sed -i '/^allprojects/i ext.kotlin_version = "1.9.22"' android/build.gradle
+
+          # Patch gradle wrapper to 8.3 for Kotlin 1.9.22 compat
+          sed -i 's|gradle-7\.[0-9]*\.[0-9]*-all.zip|gradle-8.3-all.zip|' android/gradle/wrapper/gradle-wrapper.properties
+
           echo "=== settings.gradle AFTER patch ==="
           cat android/settings.gradle
-          echo "=== build.gradle FULL ==="
+          echo "=== build.gradle AFTER patch ==="
           cat android/build.gradle
-          echo "=== app/build.gradle FULL ==="
-          cat android/app/build.gradle
-          echo "=== gradle-wrapper.properties ==="
+          echo "=== gradle-wrapper AFTER patch ==="
           cat android/gradle/wrapper/gradle-wrapper.properties
 
           # 10. Verify: list ALL MainActivity.kt files
