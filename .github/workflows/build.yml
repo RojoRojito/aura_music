@@ -79,6 +79,11 @@ jobs:
           # 10. Upgrade Gradle wrapper to 8.0 (embeds Kotlin 1.8.0)
           sed -i 's|gradle-7\.[0-9]*\.[0-9]*-all.zip|gradle-8.0-all.zip|' android/gradle/wrapper/gradle-wrapper.properties
 
+          # 11. Fix JVM target mismatch and Gradle 8 compat
+          echo "kotlin.jvm.target.validation.mode=warning" >> android/gradle.properties
+          echo "android.defaults.buildfeatures.buildconfig=true" >> android/gradle.properties
+          echo "android.nonTransitiveRClass=false" >> android/gradle.properties
+
           echo "=== settings.gradle AFTER patch ==="
           cat android/settings.gradle
           echo "=== gradle.properties ==="
