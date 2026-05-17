@@ -10,30 +10,51 @@ import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
     private val CHANNEL = "com.daviddev.aura/equalizer"
+    private val TAG = "AURA_EQ"
+    private val PRIORITY = 1
+
     private var equalizer: Equalizer? = null
     private var bassBoost: BassBoost? = null
     private var virtualizer: Virtualizer? = null
+    private var currentSessionId: Int = -1
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        Log.i(TAG, "configureFlutterEngine called")
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "initSession" -> {
                         val sessionId = call.argument<Int>("sessionId") ?: 0
+                        Log.i(TAG, ">> initSession: sessionId=$sessionId (current=$currentSessionId)")
+                        if (sessionId == 0) {
+                            Log.w(TAG, "initSession: sessionId=0, skipping (invalid)")
+                            result.success(null)
+                            return@setMethodCallHandler
+                        }
                         initEffects(sessionId)
                         result.success(null)
                     }
                     "setEnabled" -> {
                         val enabled = call.argument<Boolean>("enabled") ?: false
+                        Log.i(TAG, ">> setEnabled: $enabled (eq=${equalizer != null}, bb=${bassBoost != null}, virt=${virtualizer != null})")
                         try {
-                            equalizer?.enabled = enabled
-                            bassBoost?.enabled = enabled
-                            virtualizer?.enabled = enabled
+                            equalizer?.let {
+                                it.enabled = enabled
+                                Log.d(TAG, "  Equalizer.enabled = ${it.enabled}")
+                            } ?: Log.w(TAG, "  Equalizer is null, skipping")
+                            bassBoost?.let {
+                                it.enabled = enabled
+                                Log.d(TAG, "  BassBoost.enabled = ${it.enabled}")
+                            } ?: Log.w(TAG, "  BassBoost is null, skipping")
+                            virtualizer?.let {
+                                it.enabled = enabled
+                                Log.d(TAG, "  Virtualizer.enabled = ${it.enabled}")
+                            } ?: Log.w(TAG, "  Virtualizer is null, skipping")
                             result.success(null)
                         } catch (e: Exception) {
-                            Log.e("EQ", "setEnabled error", e)
+                            Log.e(TAG, "setEnabled ERROR", e)
                             result.error("EQ_ERROR", e.message, null)
                         }
                     }
@@ -42,67 +63,126 @@ class MainActivity : FlutterActivity() {
                         val gainDb = call.argument<Double>("gainDb") ?: 0.0
                         try {
                             equalizer?.let {
-                                // Android Equalizer uses millibels (1 dB = 100 mB)
                                 val levelMb = (gainDb * 100).toInt().toShort()
                                 it.setBandLevel(bandIndex.toShort(), levelMb)
-                            }
+                                Log.d(TAG, ">> setBandGain: band=$bandIndex, gainDb=$gainDb, levelMb=$levelMb")
+                            } ?: Log.w(TAG, ">> setBandGain: Equalizer is null, skipping")
                             result.success(null)
                         } catch (e: Exception) {
-                            Log.e("EQ", "setBandGain error", e)
+                            Log.e(TAG, "setBandGain ERROR: band=$bandIndex, gainDb=$gainDb", e)
                             result.error("EQ_ERROR", e.message, null)
                         }
                     }
                     "setBassBoost" -> {
                         val gainDb = call.argument<Double>("gainDb") ?: 0.0
                         try {
-                            // Android BassBoost strength: 0-1000, maps from 0-15 dB
-                            val strength = ((gainDb / 15.0) * 1000).toInt().coerceIn(0, 1000)
-                            bassBoost?.setStrength(strength.toShort())
+                            bassBoost?.let {
+                                if (it.strengthSupported) {
+                                    val strength = ((gainDb / 15.0) * 1000).toInt().coerceIn(0, 1000)
+                                    it.setStrength(strength.toShort())
+                                    Log.d(TAG, ">> setBassBoost: gainDb=$gainDb, strength=$strength")
+                                } else {
+                                    Log.w(TAG, ">> setBassBoost: strengthSupported=false, skipping")
+                                }
+                            } ?: Log.w(TAG, ">> setBassBoost: BassBoost is null, skipping")
                             result.success(null)
                         } catch (e: Exception) {
-                            Log.e("EQ", "setBassBoost error", e)
+                            Log.e(TAG, "setBassBoost ERROR: gainDb=$gainDb", e)
                             result.error("EQ_ERROR", e.message, null)
                         }
                     }
                     "setVirtualizer" -> {
                         val strength = call.argument<Double>("strength") ?: 0.0
                         try {
-                            // Android Virtualizer strength: 0-1000, maps from 0.0-1.0
-                            val strengthInt = (strength * 1000).toInt().coerceIn(0, 1000)
-                            virtualizer?.setStrength(strengthInt.toShort())
+                            virtualizer?.let {
+                                if (it.strengthSupported) {
+                                    val strengthInt = (strength * 1000).toInt().coerceIn(0, 1000)
+                                    it.setStrength(strengthInt.toShort())
+                                    Log.d(TAG, ">> setVirtualizer: strength=$strength, int=$strengthInt")
+                                } else {
+                                    Log.w(TAG, ">> setVirtualizer: strengthSupported=false, skipping")
+                                }
+                            } ?: Log.w(TAG, ">> setVirtualizer: Virtualizer is null, skipping")
                             result.success(null)
                         } catch (e: Exception) {
-                            Log.e("EQ", "setVirtualizer error", e)
+                            Log.e(TAG, "setVirtualizer ERROR: strength=$strength", e)
                             result.error("EQ_ERROR", e.message, null)
                         }
                     }
-                    else -> result.notImplemented()
+                    else -> {
+                        Log.w(TAG, "Unknown method: ${call.method}")
+                        result.notImplemented()
+                    }
                 }
             }
     }
 
     private fun initEffects(sessionId: Int) {
+        Log.i(TAG, "initEffects: sessionId=$sessionId (previous=$currentSessionId)")
+
+        // Release previous instances
+        releaseEffects()
+
         try {
-            // Release previous instances
-            equalizer?.release()
-            bassBoost?.release()
-            virtualizer?.release()
-
-            // Priority 0 = global session effects
-            equalizer = Equalizer(0, sessionId)
-            bassBoost = BassBoost(0, sessionId)
-            virtualizer = Virtualizer(0, sessionId)
-
-            Log.i("EQ", "Effects initialized for sessionId=$sessionId")
+            equalizer = Equalizer(PRIORITY, sessionId).apply {
+                enabled = true
+            }
+            Log.i(TAG, "  Equalizer created: bands=${equalizer!!.numberOfBands}, enabled=${equalizer!!.enabled}, range=${equalizer!!.bandLevelRange[0]}..${equalizer!!.bandLevelRange[1]}")
         } catch (e: Exception) {
-            Log.e("EQ", "initEffects error for sessionId=$sessionId", e)
+            Log.e(TAG, "  Equalizer FAILED for sessionId=$sessionId", e)
+            equalizer = null
         }
+
+        try {
+            bassBoost = BassBoost(PRIORITY, sessionId).apply {
+                enabled = true
+            }
+            Log.i(TAG, "  BassBoost created: strengthSupported=${bassBoost!!.strengthSupported}, enabled=${bassBoost!!.enabled}")
+        } catch (e: Exception) {
+            Log.w(TAG, "  BassBoost not supported for sessionId=$sessionId: ${e.message}")
+            bassBoost = null
+        }
+
+        try {
+            virtualizer = Virtualizer(PRIORITY, sessionId).apply {
+                enabled = true
+            }
+            Log.i(TAG, "  Virtualizer created: strengthSupported=${virtualizer!!.strengthSupported}, enabled=${virtualizer!!.enabled}")
+        } catch (e: Exception) {
+            Log.w(TAG, "  Virtualizer not supported for sessionId=$sessionId: ${e.message}")
+            virtualizer = null
+        }
+
+        currentSessionId = sessionId
+        Log.i(TAG, "initEffects complete: eq=${equalizer != null}, bb=${bassBoost != null}, virt=${virtualizer != null}")
+    }
+
+    private fun releaseEffects() {
+        try {
+            equalizer?.let {
+                Log.d(TAG, "Releasing Equalizer (session=$currentSessionId)")
+                it.release()
+            }
+            bassBoost?.let {
+                Log.d(TAG, "Releasing BassBoost (session=$currentSessionId)")
+                it.release()
+            }
+            virtualizer?.let {
+                Log.d(TAG, "Releasing Virtualizer (session=$currentSessionId)")
+                it.release()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error releasing effects", e)
+        }
+        equalizer = null
+        bassBoost = null
+        virtualizer = null
     }
 
     override fun onDestroy() {
-        equalizer?.release()
-        bassBoost?.release()
-        virtualizer?.release()
+        Log.i(TAG, "onDestroy: releasing effects (session=$currentSessionId)")
+        releaseEffects()
+        currentSessionId = -1
         super.onDestroy()
     }
 }
