@@ -3,7 +3,7 @@ package com.daviddev.aura_music.receivers
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.media.AudioManager
+import android.media.audiofx.AudioEffect
 import android.util.Log
 import com.daviddev.aura_music.audio.AudioSessionManager
 import com.daviddev.aura_music.services.EqualizerForegroundService
@@ -31,8 +31,8 @@ class AudioSessionReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         val action = intent.action ?: return
-        val sessionId = intent.getIntExtra(AudioManager.EXTRA_AUDIO_SESSION, -1)
-        val packageName = intent.getStringExtra(AudioManager.EXTRA_PACKAGE_NAME)
+        val sessionId = intent.getIntExtra(AudioEffect.EXTRA_AUDIO_SESSION, -1)
+        val packageName = intent.getStringExtra(AudioEffect.EXTRA_PACKAGE_NAME)
 
         Log.d(TAG, "onReceive: action=$action, sessionId=$sessionId, package=$packageName")
 
@@ -43,11 +43,11 @@ class AudioSessionReceiver : BroadcastReceiver() {
         }
 
         when (action) {
-            AudioManager.ACTION_OPEN_AUDIO_EFFECT_CONTROL_SESSION -> {
+            AudioEffect.ACTION_OPEN_AUDIO_EFFECT_CONTROL_SESSION -> {
                 Log.i(TAG, "ACTION_OPEN_AUDIO_EFFECT_CONTROL_SESSION: sessionId=$sessionId")
                 handleSessionOpen(context, sessionId)
             }
-            AudioManager.ACTION_CLOSE_AUDIO_EFFECT_CONTROL_SESSION -> {
+            AudioEffect.ACTION_CLOSE_AUDIO_EFFECT_CONTROL_SESSION -> {
                 Log.i(TAG, "ACTION_CLOSE_AUDIO_EFFECT_CONTROL_SESSION: sessionId=$sessionId")
                 handleSessionClose(context, sessionId)
             }

@@ -2,6 +2,7 @@ package com.daviddev.aura_music
 
 import android.content.IntentFilter
 import android.media.AudioManager
+import android.media.audiofx.AudioEffect
 import android.os.Bundle
 import android.util.Log
 import com.daviddev.aura_music.receivers.AudioSessionReceiver
@@ -59,8 +60,8 @@ class MainActivity : FlutterActivity() {
 
     private fun registerAudioSessionReceiver() {
         val filter = IntentFilter().apply {
-            addAction(AudioManager.ACTION_OPEN_AUDIO_EFFECT_CONTROL_SESSION)
-            addAction(AudioManager.ACTION_CLOSE_AUDIO_EFFECT_CONTROL_SESSION)
+            addAction(AudioEffect.ACTION_OPEN_AUDIO_EFFECT_CONTROL_SESSION)
+            addAction(AudioEffect.ACTION_CLOSE_AUDIO_EFFECT_CONTROL_SESSION)
         }
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {

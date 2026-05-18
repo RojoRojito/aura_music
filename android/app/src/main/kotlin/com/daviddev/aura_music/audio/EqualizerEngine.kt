@@ -304,14 +304,11 @@ class EqualizerEngine(private val context: Context) {
 
         bandGains = FloatArray(frequencies.size) { 0f }
 
-        for (ch in 0 until dp.channelCount) {
-            for (i in frequencies.indices) {
-                val eqBand = DynamicsProcessing.EqBand(
-                    true, true, frequencies[i], 1.0f, 0.0f
-                )
-                dp.setEqBand(ch, i, eqBand)
-            }
+        val stage = dp.getPreEqStage()
+        for (i in frequencies.indices) {
+            stage.setBand(i, DynamicsProcessing.EqBand(true, frequencies[i], 0.0f))
         }
+        dp.setPreEqStageTo(stage)
     }
 
     private fun setupDefaultLimiter(dp: DynamicsProcessing) {
@@ -325,15 +322,15 @@ class EqualizerEngine(private val context: Context) {
     }
 
     private fun extractDynamicsProcessingBandInfo(dp: DynamicsProcessing) {
-        val channel = 0
-        val bandCount = dp.getEqBandCount(channel)
+        val stage = dp.getPreEqStage()
+        val bandCount = stage.getBandCount()
 
         nativeBandCount = bandCount
 
         val freqs = mutableListOf<Int>()
         for (i in 0 until bandCount) {
-            val band = dp.getEqBand(channel, i)
-            freqs.add(band.frequency.toInt())
+            val band = stage.getBand(i)
+            freqs.add(band.cutoffFrequency.toInt())
         }
         nativeBandFrequencies = freqs
 
@@ -399,11 +396,14 @@ class EqualizerEngine(private val context: Context) {
     private fun applyBandGainDynamicsProcessing(bandIndex: Int, gainDb: Float) {
         dynamicsProcessing?.let { dp ->
             try {
-                val channel = 0
-                if (bandIndex < dp.getEqBandCount(channel)) {
-                    val band = dp.getEqBand(channel, bandIndex)
-                    band.gain = gainDb
-                    dp.setEqBand(channel, bandIndex, band)
+                val stage = dp.getPreEqStage()
+                if (bandIndex < stage.getBandCount()) {
+                    val band = stage.getBand(bandIndex)
+                    band.gainDb = gainDb
+                    stage.setBand(bandIndex, band)
+                    dp.setPreEqStageTo(stage)
+                } else {
+                    Unit
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "applyBandGainDynamicsProcessing ERROR", e)
@@ -414,13 +414,14 @@ class EqualizerEngine(private val context: Context) {
     private fun applyAllBandsDynamicsProcessing() {
         dynamicsProcessing?.let { dp ->
             try {
-                val channel = 0
-                val bandCount = minOf(bandGains.size, dp.getEqBandCount(channel))
+                val stage = dp.getPreEqStage()
+                val bandCount = minOf(bandGains.size, stage.getBandCount())
                 for (i in 0 until bandCount) {
-                    val band = dp.getEqBand(channel, i)
-                    band.gain = bandGains[i]
-                    dp.setEqBand(channel, i, band)
+                    val band = stage.getBand(i)
+                    band.gainDb = bandGains[i]
+                    stage.setBand(i, band)
                 }
+                dp.setPreEqStageTo(stage)
             } catch (e: Exception) {
                 Log.e(TAG, "applyAllBandsDynamicsProcessing ERROR", e)
             }
@@ -434,6 +435,8 @@ class EqualizerEngine(private val context: Context) {
                 if (bandIndex in 0 until numBands) {
                     val levelMb = (gainDb * 100).toInt().toShort()
                     eq.setBandLevel(bandIndex.toShort(), levelMb)
+                } else {
+                    Unit
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "applyBandGainLegacy ERROR", e)
@@ -458,11 +461,14 @@ class EqualizerEngine(private val context: Context) {
     private fun applyBassBoostDynamicsProcessing() {
         dynamicsProcessing?.let { dp ->
             try {
-                val channel = 0
-                if (dp.getEqBandCount(channel) > 0 && bassBoostStrength > 0) {
-                    val band = dp.getEqBand(channel, 0)
-                    band.gain = bassBoostStrength.coerceIn(0f, 12f)
-                    dp.setEqBand(channel, 0, band)
+                val stage = dp.getPreEqStage()
+                if (stage.getBandCount() > 0 && bassBoostStrength > 0) {
+                    val band = stage.getBand(0)
+                    band.gainDb = bassBoostStrength.coerceIn(0f, 12f)
+                    stage.setBand(0, band)
+                    dp.setPreEqStageTo(stage)
+                } else {
+                    Unit
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "applyBassBoostDynamicsProcessing ERROR", e)
