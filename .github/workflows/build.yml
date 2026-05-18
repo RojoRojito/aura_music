@@ -81,8 +81,6 @@ jobs:
 
       - name: Patch on_audio_query for AGP 8+ compatibility
         run: |
-          # on_audio_query_android uses ancient Kotlin 1.6.10 and AGP 4.1.3
-          # Must patch: namespace, kotlin version, AGP version, JVM targets
           OAP_BG=""
           for pattern in "*/on_audio_query_android/android/build.gradle" "*/on_audio_query/android/build.gradle"; do
             OAP_BG=$(find ${PUB_CACHE:-$HOME/.pub-cache} $HOME/.pub-cache /opt/hostedtoolcache -path "$pattern" 2>/dev/null | head -1)
@@ -93,28 +91,53 @@ jobs:
           fi
           echo "Found: $OAP_BG"
           if [ -n "$OAP_BG" ]; then
-            echo "=== Before patch ==="
-            cat "$OAP_BG"
-            # 1. Update Kotlin version
-            sed -i "s/ext.kotlin_version = '1.6.10'/ext.kotlin_version = '1.8.22'/" "$OAP_BG"
-            # 2. Update AGP version
-            sed -i "s|classpath 'com.android.tools.build:gradle:4.1.3'|classpath 'com.android.tools.build:gradle:8.1.0'|" "$OAP_BG"
-            # 3. Add namespace if missing
-            if ! grep -q "namespace" "$OAP_BG"; then
-              sed -i '/^android {/a\    namespace "com.lucasjosino.on_audio_query"' "$OAP_BG"
-            fi
-            # 4. Add JVM target compatibility after compileOptions block or at end of android {}
-            if ! grep -q "jvmTarget" "$OAP_BG"; then
-              # Add kotlinOptions with jvmTarget before the closing } of android block
-              sed -i '/^android {/,/^}/ {
-                /^}/i\
-                    kotlinOptions {\
-                        jvmTarget = "17"\
-                    }
-              }' "$OAP_BG"
-            fi
-            echo "=== After patch ==="
-            cat "$OAP_BG"
+            # Write Python patch script to temp file for reliability
+            cat > /tmp/patch_oap.py << 'PYEOF'
+import re, sys
+
+path = sys.argv[1]
+with open(path, 'r') as f:
+    content = f.read()
+
+# 1. Update Kotlin version
+content = content.replace("ext.kotlin_version = '1.6.10'", "ext.kotlin_version = '1.8.22'")
+
+# 2. Update AGP version
+content = content.replace(
+    "classpath 'com.android.tools.build:gradle:4.1.3'",
+    "classpath 'com.android.tools.build:gradle:8.1.0'"
+)
+
+# 3. Replace entire android block with fixed version
+old_android = re.search(r'android \{[^}]+\}', content, re.DOTALL)
+if old_android:
+    new_block = """android {
+    namespace "com.lucasjosino.on_audio_query"
+    compileSdk 34
+
+    sourceSets {
+        main.java.srcDirs += 'src/main/kotlin'
+    }
+    defaultConfig {
+        minSdkVersion 16
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+}"""
+    content = content[:old_android.start()] + new_block + content[old_android.end():]
+
+with open(path, 'w') as f:
+    f.write(content)
+
+print("=== Patched file ===")
+print(content)
+PYEOF
+            python3 /tmp/patch_oap.py "$OAP_BG"
           else
             echo "ERROR: on_audio_query build.gradle not found!"
             find / -maxdepth 6 -name "*on_audio_query*" 2>/dev/null | head -20
