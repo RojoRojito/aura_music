@@ -82,16 +82,31 @@ jobs:
       - name: Patch on_audio_query namespace for AGP 8+
         run: |
           # on_audio_query_android lacks namespace in build.gradle (required by AGP 8+)
-          OAP_BG=$(find ~/.pub-cache -path "*/on_audio_query_android/android/build.gradle" 2>/dev/null | head -1)
+          # Search broadly — package may be in PUB_CACHE, Flutter SDK, or system cache
+          OAP_BG=""
+          for pattern in "*/on_audio_query_android/android/build.gradle" "*/on_audio_query/android/build.gradle"; do
+            OAP_BG=$(find ${PUB_CACHE:-$HOME/.pub-cache} $HOME/.pub-cache /opt/hostedtoolcache -path "$pattern" 2>/dev/null | head -1)
+            [ -n "$OAP_BG" ] && break
+          done
+          if [ -z "$OAP_BG" ]; then
+            OAP_BG=$(find / -maxdepth 8 -path "*/on_audio_query*" -name "build.gradle" 2>/dev/null | grep -v "/example/" | head -1)
+          fi
+          echo "Found: $OAP_BG"
           if [ -n "$OAP_BG" ]; then
-            echo "Patching namespace in: $OAP_BG"
-            sed -i '/^android {/a\    namespace "com.lucasjosino.on_audio_query"' "$OAP_BG"
-            grep "namespace" "$OAP_BG"
-          else
-            echo "on_audio_query_android build.gradle not found, checking local plugin..."
-            if [ -d "just_audio_local" ]; then
-              echo "just_audio_local exists"
+            echo "=== Before patch ==="
+            head -20 "$OAP_BG"
+            # Add namespace after 'android {' line if not already present
+            if ! grep -q "namespace" "$OAP_BG"; then
+              sed -i '/^android {/a\    namespace "com.lucasjosino.on_audio_query"' "$OAP_BG"
+              echo "=== After patch ==="
+              grep -n "namespace\|android {" "$OAP_BG"
+            else
+              echo "namespace already present"
             fi
+          else
+            echo "ERROR: on_audio_query build.gradle not found!"
+            echo "Searching for any on_audio_query files..."
+            find / -maxdepth 6 -name "*on_audio_query*" 2>/dev/null | head -20
           fi
 
       - name: Remove tests
