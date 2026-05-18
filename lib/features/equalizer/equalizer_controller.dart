@@ -15,7 +15,6 @@ import '../../services/equalizer_state.dart';
 /// Architecture:
 /// - Reads state from EqualizerState
 /// - Writes to NativeEqualizerService (native bridge)
-/// - Persists via EqRepository
 /// - Notifies UI listeners via ChangeNotifier
 ///
 /// This separation ensures:
@@ -25,7 +24,6 @@ import '../../services/equalizer_state.dart';
 class EqualizerController extends ChangeNotifier {
   final EqualizerState _state;
   final NativeEqualizerService _native;
-  final EqRepository _repository;
 
   static const List<int> uiFrequencies = [
     31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 12000, 16000, 20000
@@ -35,7 +33,6 @@ class EqualizerController extends ChangeNotifier {
   EqualizerController(
     this._state,
     this._native,
-    this._repository,
   );
 
   // ─── State Accessors ────────────────────────────────────────
