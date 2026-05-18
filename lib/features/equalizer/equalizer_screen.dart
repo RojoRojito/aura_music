@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/models/eq_config.dart';
 import '../../data/models/song.dart';
+import '../../widgets/aura_animations.dart';
 import '../../services/equalizer_service.dart';
 
 class EqualizerScreen extends StatefulWidget {
@@ -708,7 +709,7 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
   }
 
   void _showResetDialog(BuildContext context, EqualizerService eqService) {
-    showDialog(
+    showAuraDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AuraColors.surfaceOf(context),

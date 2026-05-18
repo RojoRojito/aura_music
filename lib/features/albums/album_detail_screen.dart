@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:on_audio_query/on_audio_query.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/tokens/tokens.dart';
 import '../../widgets/loading_indicator.dart';
 import '../../data/models/song.dart';
 import '../../services/media_scanner.dart';
@@ -44,15 +45,17 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
             pinned: true,
             flexibleSpace: FlexibleSpaceBar(
               title: Text(widget.album.album,
-                  style: const TextStyle(color: AuraColors.text, fontSize: 16),
+                  style: AuraTypography.title.copyWith(color: AuraColors.text),
                   maxLines: 1, overflow: TextOverflow.ellipsis),
               background: Stack(children: [
                 Positioned.fill(
-                  child: QueryArtworkWidget(
-                    id: widget.album.id, type: ArtworkType.ALBUM,
-                    nullArtworkWidget: Container(
-                      color: AuraColors.surfaceHigh,
-                      child: const Icon(Icons.album, color: AuraColors.primary, size: 80)))),
+                  child: Hero(
+                    tag: 'album_art_${widget.album.id}',
+                    child: QueryArtworkWidget(
+                      id: widget.album.id, type: ArtworkType.ALBUM,
+                      nullArtworkWidget: Container(
+                        color: AuraColors.surfaceHigh,
+                        child: const Icon(Icons.album, color: AuraColors.primary, size: 80)))),
                 Positioned.fill(
                   child: Container(
                     decoration: BoxDecoration(
@@ -67,10 +70,10 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
               child: Row(children: [
                 Text('${_songs.length} canciones',
-                    style: const TextStyle(color: AuraColors.textMuted, fontSize: 13)),
+                    style: AuraTypography.caption),
                 const Spacer(),
                 Text(widget.album.artist ?? 'Artista desconocido',
-                    style: const TextStyle(color: AuraColors.textMuted, fontSize: 13)),
+                    style: AuraTypography.caption),
               ]))),
           SliverToBoxAdapter(
             child: Padding(
@@ -82,7 +85,7 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AuraColors.primary,
                   foregroundColor: Colors.white)))),
-          const SliverToBoxAdapter(child: SizedBox(height: 16)),
+          const SliverToBoxAdapter(child: SizedBox(height: AuraSpacing.xl)),
           _loading
             ? const SliverFillRemaining(
                 child: const AuraLoadingIndicator())

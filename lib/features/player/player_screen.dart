@@ -9,6 +9,7 @@ import '../../services/audio_handler.dart';
 import '../../services/dynamic_theme_service.dart';
 import '../../services/equalizer_service.dart';
 import 'player_controller.dart';
+import '../../widgets/aura_animations.dart';
 import '../equalizer/equalizer_screen.dart';
 
 class PlayerScreen extends StatefulWidget {
@@ -147,36 +148,51 @@ class _PlayerScreenState extends State<PlayerScreen>
       );
 
   Widget _albumArt(PlayerController ctrl, Color dominant) {
-    return AnimatedScale(
-      scale: ctrl.isPlaying ? 1.0 : 0.92,
-      duration: AuraAnimation.slow,
-      curve: AuraAnimation.easeOut,
-      child: Container(
-        height: 320,
-        width: 320,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(AuraRadius.xl),
-          boxShadow: [
-            BoxShadow(
-              color: dominant.withOpacity(0.4),
-              blurRadius: 60,
-              offset: const Offset(0, 24),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(AuraRadius.xl),
-          child: QueryArtworkWidget(
-            id: ctrl.currentSong?.albumId ?? 0,
-            type: ArtworkType.ALBUM,
-            quality: 100,
-            size: 512,
-            nullArtworkWidget: Container(
-              color: AuraColors.surfaceHigh,
-              child: const Icon(
-                Icons.music_note,
-                color: AuraColors.primary,
-                size: 80,
+    final songId = ctrl.currentSong?.id ?? ctrl.currentSong?.albumId ?? 0;
+    return Hero(
+      tag: 'artwork_$songId',
+      flightShuttleBuilder: (_, anim, __, from, to) {
+        return AnimatedBuilder(
+          animation: anim,
+          builder: (ctx, child) {
+            return Material(
+              color: Colors.transparent,
+              child: to,
+            );
+          },
+        );
+      },
+      child: AnimatedScale(
+        scale: ctrl.isPlaying ? 1.0 : 0.92,
+        duration: AuraAnimation.slow,
+        curve: AuraAnimation.easeOut,
+        child: Container(
+          height: 320,
+          width: 320,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AuraRadius.xl),
+            boxShadow: [
+              BoxShadow(
+                color: dominant.withOpacity(0.4),
+                blurRadius: 60,
+                offset: const Offset(0, 24),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(AuraRadius.xl),
+            child: QueryArtworkWidget(
+              id: ctrl.currentSong?.albumId ?? 0,
+              type: ArtworkType.ALBUM,
+              quality: 100,
+              size: 512,
+              nullArtworkWidget: Container(
+                color: AuraColors.surfaceHigh,
+                child: const Icon(
+                  Icons.music_note,
+                  color: AuraColors.primary,
+                  size: 80,
+                ),
               ),
             ),
           ),
@@ -241,12 +257,16 @@ class _PlayerScreenState extends State<PlayerScreen>
             final prog = dur.inMilliseconds > 0
                 ? pos.inMilliseconds / dur.inMilliseconds
                 : 0.0;
+            final themeService = context.watch<DynamicThemeService>();
             return Column(
               children: [
                 SliderTheme(
                   data: SliderThemeData(
                     trackHeight: 3,
-                    thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                    thumbShape: _GlowThumbShape(
+                      glowColor: themeService.dominantColor,
+                      enabledThumbRadius: 6,
+                    ),
                     overlayShape: SliderComponentShape.noOverlay,
                     activeTrackColor: AuraColors.primary,
                     inactiveTrackColor: AuraColors.divider,
@@ -310,11 +330,18 @@ class _PlayerScreenState extends State<PlayerScreen>
             },
           ),
           GestureDetector(
-            onTap: () {
+            onTapDown: (_) => _playScale = 0.95,
+            onTapUp: (_) {
+              _playScale = 1.0;
               ctrl.togglePlay();
               HapticFeedback.mediumImpact();
             },
-            child: Container(
+            onTapCancel: () => _playScale = 1.0,
+            child: AnimatedScale(
+              scale: _playScale,
+              duration: AuraAnimation.instant,
+              curve: AuraAnimation.easeOut,
+              child: Container(
               width: 80,
               height: 80,
               decoration: BoxDecoration(
@@ -484,12 +511,8 @@ class _PlayerScreenState extends State<PlayerScreen>
   }
 
   void _showOptions(BuildContext ctx, PlayerController ctrl) =>
-      showModalBottomSheet(
+      showAuraBottomSheet(
         context: ctx,
-        backgroundColor: AuraColors.surface,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(AuraRadius.lg)),
-        ),
         builder: (_) => Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -517,12 +540,9 @@ class _PlayerScreenState extends State<PlayerScreen>
     final currentSong = ctrl.currentSong;
     if (currentSong == null) return;
 
-    showModalBottomSheet(
+    showAuraBottomSheet(
       context: ctx,
-      backgroundColor: AuraColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AuraRadius.lg)),
-      ),
+      isScrollControlled: true,
       builder: (_) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -572,7 +592,7 @@ class _PlayerScreenState extends State<PlayerScreen>
   void _showSongInfo(BuildContext ctx, PlayerController ctrl) {
     final s = ctrl.currentSong;
     if (s == null) return;
-    showDialog(
+    showAuraDialog(
       context: ctx,
       builder: (_) => AlertDialog(
         backgroundColor: AuraColors.surface,
@@ -624,15 +644,9 @@ class _PlayerScreenState extends State<PlayerScreen>
       );
 
   void _showQueue(BuildContext ctx, PlayerController ctrl) =>
-      showModalBottomSheet(
+      showAuraBottomSheet(
         context: ctx,
-        backgroundColor: AuraColors.surface,
         isScrollControlled: true,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            top: Radius.circular(AuraRadius.lg),
-          ),
-        ),
         builder: (_) => DraggableScrollableSheet(
           expand: false,
           initialChildSize: 0.6,
@@ -654,7 +668,7 @@ class _PlayerScreenState extends State<PlayerScreen>
                     final cur = i == ctrl.currentIndex;
                     return ListTile(
                       leading: cur
-                          ? const Icon(Icons.equalizer, color: AuraColors.primary)
+                          ? const AuraPlayingBars(height: 14, barWidth: 2.5, spacing: 2)
                           : Text(
                               '${i + 1}',
                               style: AuraTypography.caption.copyWith(
@@ -687,5 +701,51 @@ class _PlayerScreenState extends State<PlayerScreen>
     final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
     final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
     return '$m:$s';
+  }
+}
+
+class _GlowThumbShape extends RoundSliderThumbShape {
+  final Color glowColor;
+
+  const _GlowThumbShape({
+    required this.glowColor,
+    super.enabledThumbRadius = 6,
+  });
+
+  @override
+  void paint(
+    PaintingContext context,
+    Offset center, {
+    required Animation<double> activationAnimation,
+    required Animation<double> enableAnimation,
+    required bool isDiscrete,
+    required TextPainter labelPainter,
+    required RenderBox parentBox,
+    required SliderThemeData sliderTheme,
+    required TextDirection textDirection,
+    required double value,
+    required double textScaleFactor,
+    required Size sizeWithOverflow,
+  }) {
+    final canvas = context.canvas;
+    final paint = Paint()
+      ..color = glowColor.withOpacity(0.4)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
+    canvas.drawCircle(center, enabledThumbRadius + 4, paint);
+
+    super.paint(
+      context,
+      center,
+      activationAnimation: activationAnimation,
+      enableAnimation: enableAnimation,
+      isDiscrete: isDiscrete,
+      labelPainter: labelPainter,
+      parentBox: parentBox,
+      sliderTheme: sliderTheme,
+      textDirection: textDirection,
+      value: value,
+      textScaleFactor: textScaleFactor,
+      sizeWithOverflow: sizeWithOverflow,
+    );
   }
 }

@@ -11,6 +11,8 @@ import '../services/audio_handler.dart';
 import '../services/dynamic_theme_service.dart';
 import 'aura_glass.dart';
 
+import '../widgets/aura_animations.dart';
+
 class MiniPlayer extends StatelessWidget {
   const MiniPlayer({super.key});
 
@@ -52,7 +54,28 @@ class MiniPlayer extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  _buildArtwork(context, song),
+                  Stack(
+                    children: [
+                      _buildArtwork(context, song),
+                      if (ctrl.isPlaying)
+                        Positioned(
+                          bottom: 2,
+                          right: 2,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: AuraColors.background.withOpacity(0.7),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            padding: const EdgeInsets.all(2),
+                            child: const AuraPlayingBars(
+                              height: 10,
+                              barWidth: 2,
+                              spacing: 2,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                   const SizedBox(width: AuraSpacing.md),
                   Expanded(child: _buildInfo(context, song)),
                   const SizedBox(width: AuraSpacing.sm),
@@ -76,22 +99,36 @@ class MiniPlayer extends StatelessWidget {
       width: 1,
     );
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(AuraRadius.sm),
-      child: Container(
-        decoration: BoxDecoration(border: border),
-        child: SizedBox(
-          width: 40,
-          height: 40,
-          child: QueryArtworkWidget(
-            id: song.albumId ?? 0,
-            type: ArtworkType.ALBUM,
-            nullArtworkWidget: Container(
-              color: AuraColors.surfaceHigh,
-              child: const Icon(
-                Icons.music_note,
-                color: AuraColors.primary,
-                size: 18,
+    return Hero(
+      tag: 'artwork_${song.id ?? song.albumId ?? 0}',
+      flightShuttleBuilder: (_, anim, __, from, to) {
+        return AnimatedBuilder(
+          animation: anim,
+          builder: (ctx, child) {
+            return Material(
+              color: Colors.transparent,
+              child: to,
+            );
+          },
+        );
+      },
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AuraRadius.sm),
+        child: Container(
+          decoration: BoxDecoration(border: border),
+          child: SizedBox(
+            width: 40,
+            height: 40,
+            child: QueryArtworkWidget(
+              id: song.albumId ?? 0,
+              type: ArtworkType.ALBUM,
+              nullArtworkWidget: Container(
+                color: AuraColors.surfaceHigh,
+                child: const Icon(
+                  Icons.music_note,
+                  color: AuraColors.primary,
+                  size: 18,
+                ),
               ),
             ),
           ),
@@ -175,15 +212,17 @@ class MiniPlayer extends StatelessWidget {
     Navigator.push(
       context,
       PageRouteBuilder(
-        pageBuilder: (_, __, ___) => const PlayerScreen(),
+        pageBuilder: (_, anim, __) => const PlayerScreen(),
         transitionDuration: AuraAnimation.normal,
-        transitionsBuilder: (_, anim, __, child) => SlideTransition(
-          position: Tween(
-            begin: const Offset(0, 1),
-            end: Offset.zero,
-          ).animate(CurvedAnimation(parent: anim, curve: AuraAnimation.easeOut)),
-          child: child,
-        ),
+        transitionsBuilder: (_, animation, __, child) {
+          return FadeTransition(
+            opacity: CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeOut,
+            ),
+            child: child,
+          );
+        },
       ),
     );
   }
@@ -198,7 +237,7 @@ class MiniPlayer extends StatelessWidget {
     final favRepo = context.read<FavoritesRepository>();
     final isFav = favRepo.isFavorite(songId);
 
-    showModalBottomSheet(
+    showAuraBottomSheet(
       context: context,
       builder: (ctx) => SafeArea(
         child: Column(

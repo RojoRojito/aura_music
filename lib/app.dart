@@ -40,11 +40,11 @@ class _ShellState extends State<_Shell> with TickerProviderStateMixin {
   int _idx = 0;
   late AnimationController _indicatorAnim;
 
-  final List<Widget> _screens = const [
-    ForYouScreen(),
-    _LibraryShell(),
-    PlaylistsScreen(),
-    SettingsScreen(),
+  final List<Widget> _screens = [
+    const ForYouScreen(key: ValueKey(0)),
+    const _LibraryShell(key: ValueKey(1)),
+    const PlaylistsScreen(key: ValueKey(2)),
+    const SettingsScreen(key: ValueKey(3)),
   ];
 
   static const _tabIcons = [
@@ -107,7 +107,21 @@ class _ShellState extends State<_Shell> with TickerProviderStateMixin {
     return Scaffold(
       backgroundColor: bgColor,
       body: Stack(children: [
-        IndexedStack(index: _idx, children: _screens),
+        AnimatedSwitcher(
+          duration: AuraAnimation.normal,
+          switchInCurve: Curves.easeOut,
+          switchOutCurve: Curves.easeOut,
+          transitionBuilder: (child, animation) {
+            return SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0.05, 0),
+                end: Offset.zero,
+              ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut)),
+              child: FadeTransition(opacity: animation, child: child),
+            );
+          },
+          child: _screens[_idx],
+        ),
         if (ctrl.currentSong != null)
           Positioned(
             left: 0, right: 0,
@@ -154,9 +168,9 @@ class _LibraryShellState extends State<_LibraryShell> {
     final txtMuted = isDark ? AuraColors.textMuted : AuraColors.lightTextMuted;
 
     final screens = const [
-      LibraryScreen(),
-      AlbumsScreen(),
-      ArtistsScreen(),
+      LibraryScreen(key: ValueKey(0)),
+      AlbumsScreen(key: ValueKey(1)),
+      ArtistsScreen(key: ValueKey(2)),
     ];
 
     return Consumer<LibraryController>(
@@ -213,7 +227,15 @@ class _LibraryShellState extends State<_LibraryShell> {
             ),
           ),
         ),
-        body: IndexedStack(index: _tab, children: screens),
+        body: AnimatedSwitcher(
+          duration: AuraAnimation.fast,
+          switchInCurve: Curves.easeOut,
+          switchOutCurve: Curves.easeOut,
+          transitionBuilder: (child, animation) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+          child: screens[_tab],
+        ),
         floatingActionButton: _tab == 0 && ctrl.songs.isNotEmpty
             ? FloatingActionButton.extended(
                 onPressed: ctrl.shuffleAll,

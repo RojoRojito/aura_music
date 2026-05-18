@@ -7,11 +7,14 @@ import 'package:permission_handler/permission_handler.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/tokens/tokens.dart';
 import '../../data/models/song.dart';
+import '../../data/models/song_stats.dart';
 import '../player/player_controller.dart';
 import 'library_controller.dart';
+import '../../widgets/aura_animations.dart';
 import '../../widgets/add_to_playlist_sheet.dart';
-import '../../widgets/loading_indicator.dart';
-import '../home/widgets/recommendation_section.dart';
+import '../../widgets/aura_empty_state.dart';
+import '../../widgets/aura_loading_state.dart';
+import '../../services/media_scanner.dart';
 
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
@@ -24,7 +27,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
   Timer? _debounce;
 
   @override
-  void dispose() { _debounce?.cancel(); _searchCtrl.dispose(); super.dispose(); }
+  void dispose() {
+    _debounce?.cancel();
+    _searchCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -80,9 +87,17 @@ class _LibraryScreenState extends State<LibraryScreen> {
               onPressed: () => setState(() => _searching = true),
             ),
             IconButton(
+              icon: const Icon(Icons.sort),
+              color: txtMuted,
+              onPressed: () => _showSortOptions(ctrl),
+            ),
+            IconButton(
               icon: const Icon(Icons.refresh),
               color: txtMuted,
-              onPressed: ctrl.scanLibrary,
+              onPressed: () {
+                ctrl.scanLibrary();
+                ctrl.refreshStats();
+              },
             ),
           ],
           if (_searching)
@@ -105,76 +120,285 @@ class _LibraryScreenState extends State<LibraryScreen> {
     final txtMuted = AuraColors.textMutedOf(context);
     switch (ctrl.status) {
       case LibraryStatus.loading:
-        return const AuraLoadingIndicator();
+        return const AuraLoadingState(state: AuraState.loading);
       case LibraryStatus.noPermission:
-        return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          const Icon(Icons.no_accounts, color: AuraColors.accent, size: 64),
-          const SizedBox(height: 16),
-          Text('Permiso de audio denegado', style: TextStyle(color: AuraColors.textMuted, fontSize: 16)),
-          const SizedBox(height: 8),
-          Text('Concede permisos para ver tus canciones', style: TextStyle(color: AuraColors.textMuted, fontSize: 13)),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: () async {
-              await openAppSettings();
-            },
-            icon: const Icon(Icons.settings),
-            label: const Text('Abrir ajustes'),
-            style: ElevatedButton.styleFrom(backgroundColor: AuraColors.primary),
-          ),
-        ]));
+        return AuraEmptyState(
+          icon: Icons.no_accounts,
+          title: 'Permiso de audio denegado',
+          message: 'Concede permisos para ver tus canciones',
+          actionLabel: 'Abrir ajustes',
+          onAction: () async => await openAppSettings(),
+        );
       case LibraryStatus.error:
-        return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          const Icon(Icons.error_outline, color: AuraColors.accent, size: 48),
-          const SizedBox(height: 12),
-          Text(ctrl.errorMessage ?? 'Error desconocido', style: TextStyle(color: txtMuted)),
-          const SizedBox(height: 16),
-          ElevatedButton(onPressed: ctrl.scanLibrary, child: const Text('Reintentar')),
-        ]));
+        return AuraEmptyState(
+          icon: Icons.error_outline,
+          title: 'Error al cargar',
+          message: ctrl.errorMessage ?? 'Error desconocido',
+          actionLabel: 'Reintentar',
+          onAction: ctrl.scanLibrary,
+        );
       case LibraryStatus.empty:
-        return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Icon(Icons.music_off, color: txtMuted, size: 64),
-          const SizedBox(height: 16),
-          Text('No se encontraron canciones', style: TextStyle(color: txtMuted, fontSize: 16)),
-        ]));
+        return const AuraEmptyState(
+          icon: Icons.music_off,
+          title: 'No se encontraron canciones',
+          message: 'Escanea tu biblioteca para encontrar música',
+        );
       case LibraryStatus.initial:
       case LibraryStatus.loaded:
-        return CustomScrollView(slivers: [
-          SliverToBoxAdapter(
-            child: Column(
-              children: [
-                const SizedBox(height: 16),
-                const RecommendationSection(),
-                const SizedBox(height: 24),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(children: [
-                    Text('TODAS LAS CANCIONES',
-                        style: TextStyle(
-                            color: txtMuted,
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold)),
-                    const Spacer(),
-                    Text('${ctrl.songs.length} canciones',
-                        style:
-                            TextStyle(color: txtMuted, fontSize: 11)),
-                  ]),
+        return RefreshIndicator(
+          onRefresh: () async {
+            ctrl.scanLibrary();
+            ctrl.refreshStats();
+          },
+          child: CustomScrollView(
+            slivers: [
+              if (ctrl.hasSections && !_searching) ...[
+                _buildSection(
+                  context,
+                  'RECIENTES',
+                  ctrl.recentlyPlayed,
+                  ctrl,
                 ),
-                const SizedBox(height: 8),
+                const SliverToBoxAdapter(child: SizedBox(height: AuraSpacing.xl)),
+                _buildSection(
+                  context,
+                  'MÁS ESCUCHADAS',
+                  ctrl.mostPlayed,
+                  ctrl,
+                ),
+                const SliverToBoxAdapter(child: SizedBox(height: AuraSpacing.xl)),
               ],
-            ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AuraSpacing.lg),
+                  child: Row(
+                    children: [
+                      Text(
+                        _searching ? 'RESULTADOS' : 'TODAS LAS CANCIONES',
+                        style: AuraTypography.overline.copyWith(
+                          color: txtMuted,
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        '${ctrl.songs.length} canciones',
+                        style: AuraTypography.caption.copyWith(color: txtMuted),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SliverToBoxAdapter(child: SizedBox(height: AuraSpacing.sm)),
+              SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (ctx, i) => _SongTile(
+                    song: ctrl.songs[i],
+                    onTap: () => ctrl.playSong(ctrl.songs[i]),
+                  ),
+                  childCount: ctrl.songs.length,
+                ),
+              ),
+              const SliverToBoxAdapter(child: SizedBox(height: 140)),
+            ],
           ),
-          SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (ctx, i) => _SongTile(
-                  song: ctrl.songs[i],
-                  onTap: () => ctrl.playSong(ctrl.songs[i])),
-              childCount: ctrl.songs.length,
-            ),
-          ),
-          const SliverToBoxAdapter(child: SizedBox(height: 140)),
-        ]);
+        );
     }
+  }
+
+  Widget _buildSection(
+    BuildContext context,
+    String label,
+    List<SongStats> stats,
+    LibraryController ctrl,
+  ) {
+    final txtMuted = AuraColors.textMutedOf(context);
+    return SliverToBoxAdapter(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AuraSpacing.lg),
+            child: Text(label, style: AuraTypography.overline.copyWith(color: txtMuted)),
+          ),
+          const SizedBox(height: AuraSpacing.sm),
+          SizedBox(
+            height: 180,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: AuraSpacing.lg),
+              itemCount: stats.length,
+              itemBuilder: (_, i) => _SectionCard(
+                stat: stats[i],
+                onTap: () => _playFromStats(stats, i, ctrl),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _playFromStats(
+    List<SongStats> stats,
+    int index,
+    LibraryController ctrl,
+  ) async {
+    final scanner = context.read<MediaScanner>();
+    final ctrl2 = context.read<PlayerController>();
+    final song = await scanner.getSongById(stats[index].songId);
+    if (song != null) {
+      ctrl2.playSong(song);
+    }
+  }
+
+  void _showSortOptions(LibraryController ctrl) {
+    showAuraBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(AuraSpacing.lg),
+              child: Text(
+                'Ordenar por',
+                style: AuraTypography.headline,
+              ),
+            ),
+            ...SortOption.values.map((option) {
+              final isActive = ctrl.sortOption == option;
+              return ListTile(
+                leading: Icon(
+                  _sortIcon(option),
+                  color: isActive ? AuraColors.primary : AuraColors.textMuted,
+                ),
+                title: Text(
+                  _sortLabel(option),
+                  style: TextStyle(
+                    color: isActive ? AuraColors.primary : AuraColors.text,
+                    fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                  ),
+                ),
+                trailing: isActive
+                    ? Icon(
+                        ctrl.ascending
+                            ? Icons.arrow_upward
+                            : Icons.arrow_downward,
+                        color: AuraColors.primary,
+                        size: 18,
+                      )
+                    : null,
+                onTap: () {
+                  ctrl.setSort(option);
+                  Navigator.pop(ctx);
+                },
+              );
+            }),
+            const SizedBox(height: AuraSpacing.sm),
+          ],
+        ),
+      ),
+    );
+  }
+
+  IconData _sortIcon(SortOption option) {
+    switch (option) {
+      case SortOption.title:
+        return Icons.sort_by_alpha;
+      case SortOption.artist:
+        return Icons.person;
+      case SortOption.album:
+        return Icons.album;
+      case SortOption.duration:
+        return Icons.timer;
+      case SortOption.dateAdded:
+        return Icons.calendar_today;
+    }
+  }
+
+  String _sortLabel(SortOption option) {
+    switch (option) {
+      case SortOption.title:
+        return 'Título';
+      case SortOption.artist:
+        return 'Artista';
+      case SortOption.album:
+        return 'Álbum';
+      case SortOption.duration:
+        return 'Duración';
+      case SortOption.dateAdded:
+        return 'Fecha agregada';
+    }
+  }
+}
+
+class _SectionCard extends StatelessWidget {
+  final SongStats stat;
+  final VoidCallback onTap;
+  const _SectionCard({required this.stat, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final surface = AuraColors.surfaceOf(context);
+    final txt = AuraColors.textOf(context);
+    final txtMuted = AuraColors.textMutedOf(context);
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AuraRadius.md),
+      child: Container(
+        width: 140,
+        margin: const EdgeInsets.only(right: AuraSpacing.md),
+        decoration: BoxDecoration(
+          color: surface,
+          borderRadius: BorderRadius.circular(AuraRadius.md),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(AuraRadius.md),
+                ),
+                child: QueryArtworkWidget(
+                  id: stat.songId,
+                  type: ArtworkType.ALBUM,
+                  nullArtworkWidget: Container(
+                    color: AuraColors.surfaceHigh,
+                    child: const Icon(
+                      Icons.music_note,
+                      color: AuraColors.primary,
+                      size: 32,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(AuraSpacing.sm),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    stat.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AuraTypography.label.copyWith(color: txt),
+                  ),
+                  Text(
+                    stat.artist,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AuraTypography.caption.copyWith(color: txtMuted),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -203,26 +427,45 @@ class _SongTile extends StatelessWidget {
         ],
       ),
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: AuraSpacing.lg,
+          vertical: AuraSpacing.xs,
+        ),
         leading: ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: SizedBox(width: 48, height: 48,
+          borderRadius: BorderRadius.circular(AuraRadius.sm),
+          child: SizedBox(
+            width: 48,
+            height: 48,
             child: QueryArtworkWidget(
-              id: song.albumId ?? 0, type: ArtworkType.ALBUM,
+              id: song.albumId ?? 0,
+              type: ArtworkType.ALBUM,
               nullArtworkWidget: Container(
                 color: surfaceHigh,
-                child: Icon(Icons.music_note,
-                    color: playing ? AuraColors.primary : txtMuted))))),
-        title: Text(song.title, maxLines: 1, overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-                color: playing ? AuraColors.primary : txt,
-                fontWeight: playing ? FontWeight.w600 : FontWeight.normal,
-                fontSize: 14)),
-        subtitle: Text('${song.artist} • ${song.durationFormatted}',
-            maxLines: 1, overflow: TextOverflow.ellipsis,
-            style: TextStyle(color: txtMuted, fontSize: 12)),
+                child: Icon(
+                  Icons.music_note,
+                  color: playing ? AuraColors.primary : txtMuted,
+                ),
+              ),
+            ),
+          ),
+        ),
+        title: Text(
+          song.title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: AuraTypography.title.copyWith(
+            color: playing ? AuraColors.primary : txt,
+            fontWeight: playing ? FontWeight.w600 : FontWeight.normal,
+          ),
+        ),
+        subtitle: Text(
+          '${song.artist} • ${song.durationFormatted}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: AuraTypography.caption.copyWith(color: txtMuted),
+        ),
         trailing: playing
-            ? const Icon(Icons.equalizer, color: AuraColors.primary, size: 20)
+            ? const AuraPlayingBars(height: 14, barWidth: 2.5, spacing: 2)
             : null,
         onTap: onTap,
       ),

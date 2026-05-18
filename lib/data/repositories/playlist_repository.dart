@@ -106,4 +106,31 @@ class PlaylistRepository extends ChangeNotifier {
         where: 'playlist_id = ? AND song_id = ?', whereArgs: [plId, songId]);
     await loadPlaylists();
   }
+
+  Future<void> renamePlaylist(int plId, String newName) async {
+    final db = await database;
+    await db.update('playlists', {'name': newName},
+        where: 'id = ?', whereArgs: [plId]);
+    await loadPlaylists();
+  }
+
+  Future<void> reorderSongs(int plId, int oldIndex, int newIndex) async {
+    final db = await database;
+    final maps = await db.query('playlist_songs',
+        where: 'playlist_id = ?', whereArgs: [plId], orderBy: 'position ASC');
+
+    if (oldIndex < 0 || oldIndex >= maps.length ||
+        newIndex < 0 || newIndex >= maps.length) return;
+
+    final item = maps.removeAt(oldIndex);
+    maps.insert(newIndex, item);
+
+    final batch = db.batch();
+    for (var i = 0; i < maps.length; i++) {
+      batch.update('playlist_songs', {'position': i},
+          where: 'id = ?', whereArgs: [maps[i]['id']]);
+    }
+    await batch.commit(noResult: true);
+    await loadPlaylists();
+  }
 }

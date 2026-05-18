@@ -101,7 +101,9 @@ Future<void> main() async {
       ChangeNotifierProvider.value(value: playerController),
       ChangeNotifierProvider(
           create: (c) => LibraryController(
-              c.read<MediaScanner>(), c.read<PlayerController>())),
+              c.read<MediaScanner>(),
+              c.read<PlayerController>(),
+              c.read<StatsRepository>())),
       ChangeNotifierProvider(create: (c) {
         final repo = PlaylistRepository();
         repo.loadPlaylists();

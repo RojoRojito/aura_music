@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../core/theme/tokens/tokens.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/models/song.dart';
 import '../../data/models/playlist.dart';
 import '../../data/repositories/playlist_repository.dart';
+import '../widgets/aura_animations.dart';
 import '../features/player/player_controller.dart';
 
 class AddToPlaylistSheet extends StatelessWidget {
@@ -11,12 +13,9 @@ class AddToPlaylistSheet extends StatelessWidget {
   const AddToPlaylistSheet({super.key, required this.song});
 
   static Future<void> show(BuildContext context, Song song) {
-    return showModalBottomSheet(
+    return showAuraBottomSheet(
       context: context,
-      backgroundColor: AuraColors.surface,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => AddToPlaylistSheet(song: song),
     );
   }
@@ -27,13 +26,13 @@ class AddToPlaylistSheet extends StatelessWidget {
     
     return Column(mainAxisSize: MainAxisSize.min, children: [
       const Padding(
-        padding: EdgeInsets.all(16),
+        padding: EdgeInsets.all(AuraSpacing.xl),
         child: Text('Opciones',
-            style: TextStyle(color: AuraColors.text, fontSize: 18, fontWeight: FontWeight.bold))),
+            style: AuraTypography.headline)),
       ListTile(
         leading: const Icon(Icons.queue_music, color: AuraColors.primary),
         title: const Text('Añadir a la cola',
-            style: TextStyle(color: AuraColors.text)),
+            style: AuraTypography.title),
         onTap: () async {
           await ctrl.addToQueue(song);
           if (context.mounted) {
@@ -51,7 +50,7 @@ class AddToPlaylistSheet extends StatelessWidget {
       ListTile(
         leading: const Icon(Icons.queue_play_next, color: AuraColors.secondary),
         title: const Text('Reproducir siguiente',
-            style: TextStyle(color: AuraColors.text)),
+            style: AuraTypography.title),
         onTap: () async {
           await ctrl.playNext(song);
           if (context.mounted) {
@@ -68,20 +67,20 @@ class AddToPlaylistSheet extends StatelessWidget {
       ),
       const Divider(color: AuraColors.divider),
       const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: EdgeInsets.symmetric(horizontal: AuraSpacing.xl, vertical: AuraSpacing.sm),
         child: Align(
           alignment: Alignment.centerLeft,
           child: Text('Agregar a playlist',
-              style: TextStyle(color: AuraColors.textMuted, fontSize: 12))),
+              style: AuraTypography.caption)),
       ),
       Flexible(
         child: Consumer<PlaylistRepository>(
           builder: (_, repo, __) {
             return repo.playlists.isEmpty
               ? const Padding(
-                  padding: EdgeInsets.all(32),
+                  padding: EdgeInsets.all(AuraSpacing.xl),
                   child: Text('No hay playlists',
-                      style: TextStyle(color: AuraColors.textMuted)))
+                      style: AuraTypography.body))
               : ListView.builder(
                   shrinkWrap: true,
                   itemCount: repo.playlists.length,
@@ -92,12 +91,12 @@ class AddToPlaylistSheet extends StatelessWidget {
                         width: 40, height: 40,
                         decoration: BoxDecoration(
                           color: AuraColors.surfaceHigh,
-                          borderRadius: BorderRadius.circular(8)),
+                          borderRadius: BorderRadius.circular(AuraRadius.sm)),
                         child: const Icon(Icons.queue_music, color: AuraColors.primary, size: 20)),
                       title: Text(pl.name,
-                          style: const TextStyle(color: AuraColors.text)),
+                          style: AuraTypography.title),
                       subtitle: Text('${pl.songCount} canciones',
-                          style: const TextStyle(color: AuraColors.textMuted, fontSize: 12)),
+                          style: AuraTypography.caption),
                       onTap: () => _addToPlaylist(context, repo, pl),
                     );
                   },
@@ -108,10 +107,10 @@ class AddToPlaylistSheet extends StatelessWidget {
       ListTile(
         leading: const Icon(Icons.add, color: AuraColors.secondary),
         title: const Text('Crear nueva playlist',
-            style: TextStyle(color: AuraColors.secondary)),
+            style: AuraTypography.title),
         onTap: () => _showCreateDialog(context),
       ),
-      const SizedBox(height: 16),
+      const SizedBox(height: AuraSpacing.xl),
     ]);
   }
 
@@ -132,23 +131,19 @@ class AddToPlaylistSheet extends StatelessWidget {
   void _showCreateDialog(BuildContext context) {
     final ctrl = TextEditingController();
     final repo = context.read<PlaylistRepository>();
-    showDialog(
+    showAuraDialog(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: AuraColors.surface,
-        title: const Text('Nueva playlist',
-            style: TextStyle(color: AuraColors.text)),
+        title: const Text('Nueva playlist'),
         content: TextField(
           controller: ctrl,
           autofocus: true,
-          style: const TextStyle(color: AuraColors.text),
           decoration: const InputDecoration(
-            hintText: 'Nombre de la playlist',
-            hintStyle: TextStyle(color: AuraColors.textMuted))),
+            hintText: 'Nombre de la playlist')),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar', style: TextStyle(color: AuraColors.textMuted))),
+            child: const Text('Cancelar')),
           TextButton(
             onPressed: () async {
               if (ctrl.text.isNotEmpty) {
@@ -165,7 +160,7 @@ class AddToPlaylistSheet extends StatelessWidget {
                 }
               }
             },
-            child: const Text('Crear', style: TextStyle(color: AuraColors.primary))),
+            child: const Text('Crear')),
         ],
       ),
     );

@@ -72,6 +72,28 @@ class StatsRepository extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<List<SongStats>> getRecentlyPlayed({int limit = 20}) async {
+    final db = await AppDatabase.instance.database;
+    final maps = await db.query(
+      'song_stats',
+      orderBy: 'last_played DESC',
+      limit: limit,
+      where: 'last_played IS NOT NULL',
+    );
+    return maps.map((m) => SongStats.fromMap(m)).toList();
+  }
+
+  Future<List<SongStats>> getMostPlayed({int limit = 20}) async {
+    final db = await AppDatabase.instance.database;
+    final maps = await db.query(
+      'song_stats',
+      orderBy: 'play_count DESC',
+      limit: limit,
+      where: 'play_count > 0',
+    );
+    return maps.map((m) => SongStats.fromMap(m)).toList();
+  }
+
   Future<List<SongStats>> getAllStats() async {
     final db = await AppDatabase.instance.database;
     final maps = await db.query('song_stats', orderBy: 'play_count DESC');
