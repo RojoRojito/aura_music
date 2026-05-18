@@ -4,7 +4,6 @@ import '../../core/theme/app_theme.dart';
 import '../../data/models/eq_config.dart';
 import '../../data/models/song.dart';
 import '../../widgets/aura_animations.dart';
-import '../../services/equalizer_service.dart';
 import '../../features/equalizer/equalizer_controller.dart';
 
 class EqualizerScreen extends StatefulWidget {
