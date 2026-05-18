@@ -11,7 +11,7 @@ jobs:
   build:
     name: Build & Release APK
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -25,7 +25,7 @@ jobs:
       - name: Setup Flutter SDK
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.0'
+          flutter-version: '3.27.4'
           channel: 'stable'
 
       - name: Clean and Regenerate Android
@@ -64,48 +64,35 @@ jobs:
             cp -r just_audio_local.bak just_audio_local
           fi
 
-          # 9. Force Kotlin 1.8.22 via version catalog override in settings.gradle
-          #    This MUST come before any other plugins block modifications
-          sed -i 's/id "org\.jetbrains\.kotlin\.android" version "[^"]*"/id "org.jetbrains.kotlin.android" version "1.8.22"/g' android/settings.gradle
-          
-          # Also ensure build.gradle has it (fallback for older AGP)
-          sed -i "s/ext\.kotlin_version = '[^']*'/ext.kotlin_version = '1.8.22'/g" android/build.gradle 2>/dev/null || true
-          sed -i 's/ext\.kotlin_version = "[^"]*"/ext.kotlin_version = "1.8.22"/g' android/build.gradle 2>/dev/null || true
-
-          # Bump compileSdk to 34 (replace whole expression, not just digits)
-          sed -i 's/compileSdk = flutter\.compileSdkVersion/compileSdk = 34/g' android/app/build.gradle
-          sed -i 's/compileSdk flutter\.compileSdkVersion/compileSdk 34/g' android/app/build.gradle
-          sed -i 's/compileSdkVersion flutter\.compileSdkVersion/compileSdkVersion 34/g' android/app/build.gradle
-
-          # 10. Clear Gradle wrapper cache and force 8.0
-          rm -rf ~/.gradle/wrapper/dists
-          {
-            echo "distributionBase=GRADLE_USER_HOME"
-            echo "distributionPath=wrapper/dists"
-            echo "zipStoreBase=GRADLE_USER_HOME"
-            echo "zipStorePath=wrapper/dists"
-            echo "distributionUrl=https\://services.gradle.org/distributions/gradle-8.0-all.zip"
-          } > android/gradle/wrapper/gradle-wrapper.properties
-
-          # 11. Fix JVM target mismatch for Gradle 8.0
-          echo "kotlin.jvm.target.validation.mode=warning" >> android/gradle.properties
-
-          # 12. Delete any flutter-generated MainActivity that could shadow ours
+          # 9. Delete any flutter-generated MainActivity that could shadow ours
           rm -rf android/app/src/main/kotlin/com/example/
 
-          # 13. Verify patches
-          echo "=== Kotlin version in settings.gradle ==="
-          grep "kotlin" android/settings.gradle || true
-          echo "=== Kotlin version in build.gradle ==="
-          grep "kotlin" android/build.gradle || true
+          # 10. Verify regenerated files
           echo "=== compileSdk ==="
           grep "compileSdk" android/app/build.gradle || true
+          echo "=== Kotlin in settings.gradle ==="
+          grep "kotlin" android/settings.gradle || true
 
       - name: Accept Android Licenses
         run: yes | flutter doctor --android-licenses
 
       - name: Get dependencies
         run: flutter pub get
+
+      - name: Patch on_audio_query namespace for AGP 8+
+        run: |
+          # on_audio_query_android lacks namespace in build.gradle (required by AGP 8+)
+          OAP_BG=$(find ~/.pub-cache -path "*/on_audio_query_android/android/build.gradle" 2>/dev/null | head -1)
+          if [ -n "$OAP_BG" ]; then
+            echo "Patching namespace in: $OAP_BG"
+            sed -i '/^android {/a\    namespace "com.lucasjosino.on_audio_query"' "$OAP_BG"
+            grep "namespace" "$OAP_BG"
+          else
+            echo "on_audio_query_android build.gradle not found, checking local plugin..."
+            if [ -d "just_audio_local" ]; then
+              echo "just_audio_local exists"
+            fi
+          fi
 
       - name: Remove tests
         run: rm -rf test
@@ -117,7 +104,7 @@ jobs:
         run: flutter build apk --release
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g"
-        
+
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
