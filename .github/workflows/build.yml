@@ -55,8 +55,12 @@ jobs:
           # 7. Restaurar TODOS los archivos Kotlin nativos (overwrite generated ones)
           echo "=== native_backup contents ==="
           find native_backup -type f
-          cp -rf native_backup/aura_music/* android/app/src/main/kotlin/com/daviddev/aura_music/
-          echo "=== MainActivity.kt AFTER overwrite ==="
+          # Remove flutter-generated kotlin dir and restore ours completely
+          rm -rf android/app/src/main/kotlin/com/daviddev/aura_music
+          cp -rf native_backup/aura_music android/app/src/main/kotlin/com/daviddev/aura_music
+          echo "=== Restored files ==="
+          find android/app/src/main/kotlin/com/daviddev/aura_music -type f
+          echo "=== MainActivity.kt (first 5 lines) ==="
           head -5 android/app/src/main/kotlin/com/daviddev/aura_music/MainActivity.kt
 
           # 8. Restaurar just_audio_local
@@ -64,17 +68,17 @@ jobs:
             cp -r just_audio_local.bak just_audio_local
           fi
 
-          # 9. Parchear Kotlin version a 1.9.22 (requerido por plugins)
+          # 9. Parchear Kotlin version a 1.8.22 (compatible con deps compiladas en 1.8.0)
           echo "=== settings.gradle BEFORE patch ==="
           cat android/settings.gradle
           echo "=== build.gradle BEFORE patch ==="
           head -20 android/build.gradle
 
           # Patch settings.gradle (new AGP format: id "org.jetbrains.kotlin.android" version "...")
-          sed -i 's/id "org\.jetbrains\.kotlin\.android" version "[^"]*"/id "org.jetbrains.kotlin.android" version "1.9.22"/' android/settings.gradle
+          sed -i 's/id "org\.jetbrains\.kotlin\.android" version "[^"]*"/id "org.jetbrains.kotlin.android" version "1.8.22"/' android/settings.gradle
           # Patch build.gradle (old AGP format: ext.kotlin_version = '...')
-          sed -i "s/kotlin_version = '[^']*'/kotlin_version = '1.9.22'/" android/build.gradle 2>/dev/null || true
-          sed -i 's/ext.kotlin_version = "[^"]*"/ext.kotlin_version = "1.9.22"/' android/build.gradle 2>/dev/null || true
+          sed -i "s/kotlin_version = '[^']*'/kotlin_version = '1.8.22'/" android/build.gradle 2>/dev/null || true
+          sed -i 's/ext.kotlin_version = "[^"]*"/ext.kotlin_version = "1.8.22"/' android/build.gradle 2>/dev/null || true
 
           echo "=== settings.gradle AFTER patch ==="
           cat android/settings.gradle
