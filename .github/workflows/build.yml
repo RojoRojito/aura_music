@@ -69,21 +69,24 @@ jobs:
           fi
 
           # 9. Parchear Kotlin version a 1.8.22 (compatible con deps compiladas en 1.8.0)
-          echo "=== settings.gradle BEFORE patch ==="
-          cat android/settings.gradle
-          echo "=== build.gradle BEFORE patch ==="
-          head -20 android/build.gradle
+          # Force kotlin version via buildscript block (works regardless of AGP format)
+          cat > /tmp/kotlin_patch.gradle << 'PATCH'
+buildscript {
+    ext.kotlin_version = '1.8.22'
+}
+PATCH
+          cat /tmp/kotlin_patch.gradle android/build.gradle > /tmp/build_new.gradle
+          mv /tmp/build_new.gradle android/build.gradle
 
-          # Patch settings.gradle (new AGP format: id "org.jetbrains.kotlin.android" version "...")
+          # Also patch settings.gradle for new AGP format
           sed -i 's/id "org\.jetbrains\.kotlin\.android" version "[^"]*"/id "org.jetbrains.kotlin.android" version "1.8.22"/' android/settings.gradle
-          # Patch build.gradle (old AGP format: ext.kotlin_version = '...')
-          sed -i "s/kotlin_version = '[^']*'/kotlin_version = '1.8.22'/" android/build.gradle 2>/dev/null || true
-          sed -i 's/ext.kotlin_version = "[^"]*"/ext.kotlin_version = "1.8.22"/' android/build.gradle 2>/dev/null || true
 
-          echo "=== settings.gradle AFTER patch ==="
-          cat android/settings.gradle
-          echo "=== build.gradle AFTER patch ==="
-          head -20 android/build.gradle
+          echo "=== settings.gradle (kotlin line) ==="
+          grep -n "kotlin" android/settings.gradle
+          echo "=== build.gradle (kotlin line) ==="
+          grep -n "kotlin" android/build.gradle
+          echo "=== app/build.gradle (compileSdk) ==="
+          grep -n "compileSdk" android/app/build.gradle
 
           # 10. Clear Gradle wrapper cache and force 8.0
           rm -rf ~/.gradle/wrapper/dists
@@ -99,10 +102,6 @@ jobs:
 
           # 11. Fix JVM target mismatch for Gradle 8.0
           echo "kotlin.jvm.target.validation.mode=warning" >> android/gradle.properties
-
-          # 12. Ensure compileSdkVersion >= 34 for DynamicsProcessing API
-          sed -i 's/compileSdkVersion [0-9]*/compileSdkVersion 34/' android/app/build.gradle 2>/dev/null || true
-          sed -i 's/compileSdk = [0-9]*/compileSdk = 34/' android/app/build.gradle 2>/dev/null || true
 
           echo "=== gradle.properties ==="
           cat android/gradle.properties
