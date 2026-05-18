@@ -100,10 +100,14 @@ jobs:
           # 11. Fix JVM target mismatch for Gradle 8.0
           echo "kotlin.jvm.target.validation.mode=warning" >> android/gradle.properties
 
+          # 12. Ensure compileSdkVersion >= 34 for DynamicsProcessing API
+          sed -i 's/compileSdkVersion [0-9]*/compileSdkVersion 34/' android/app/build.gradle 2>/dev/null || true
+          sed -i 's/compileSdk = [0-9]*/compileSdk = 34/' android/app/build.gradle 2>/dev/null || true
+
           echo "=== gradle.properties ==="
           cat android/gradle.properties
 
-          # 12. Verify: list ALL MainActivity.kt files
+          # 13. Verify: list ALL MainActivity.kt files
           echo "=== ALL MainActivity.kt files ==="
           find . -name "MainActivity.kt" -type f
           echo "=== Content of our MainActivity.kt (first 5 lines) ==="

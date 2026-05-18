@@ -166,8 +166,8 @@ class EqualizerEngine(private val context: Context) {
             "legacy" -> {
                 bassBoost?.let { bb ->
                     if (bb.strengthSupported) {
-                        val strength = ((bassBoostStrength / 15f) * 1000).toInt().coerceIn(0, 1000)
-                        bb.strength = strength.toShort()
+                        val s = ((bassBoostStrength / 15f) * 1000).toInt().coerceIn(0, 1000)
+                        bb.setStrength(s.toShort())
                     }
                 }
             }
@@ -186,7 +186,7 @@ class EqualizerEngine(private val context: Context) {
                 virtualizer?.let { v ->
                     if (v.strengthSupported) {
                         val s = (virtualizerStrength * 1000).toInt().coerceIn(0, 1000)
-                        v.strength = s.toShort()
+                        v.setStrength(s.toShort())
                     }
                 }
             }
@@ -307,7 +307,7 @@ class EqualizerEngine(private val context: Context) {
         for (ch in 0 until dp.channelCount) {
             for (i in frequencies.indices) {
                 val eqBand = DynamicsProcessing.EqBand(
-                    true, true, frequencies[i], 1.0f, 0.0f, 0.0f
+                    true, true, frequencies[i], 1.0f, 0.0f
                 )
                 dp.setEqBand(ch, i, eqBand)
             }

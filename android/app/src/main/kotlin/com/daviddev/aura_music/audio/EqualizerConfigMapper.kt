@@ -1,7 +1,6 @@
 package com.daviddev.aura_music.audio
 
-import kotlin.math.log
-import kotlin.math.pow
+import kotlin.math.ln
 
 /**
  * EqualizerConfigMapper — Converts Flutter/UI values into DSP configuration.
@@ -137,9 +136,9 @@ object EqualizerConfigMapper {
         // Find the bracketing frequencies and interpolate logarithmically
         for (i in 0 until freqs.size - 1) {
             if (freqs[i] <= targetFreq && freqs[i + 1] >= targetFreq) {
-                val logTarget = log(targetFreq)
-                val logLow = log(freqs[i].toDouble())
-                val logHigh = log(freqs[i + 1].toDouble())
+                val logTarget = ln(targetFreq)
+                val logLow = ln(freqs[i].toDouble())
+                val logHigh = ln(freqs[i + 1].toDouble())
 
                 // Avoid division by zero (shouldn't happen with valid data)
                 val denominator = logHigh - logLow
