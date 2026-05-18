@@ -157,7 +157,7 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
                 ),
                 onSelected: (_) { eqController.applyPreset(name); },
               ),
-            ),
+            );
           }).toList(),
         ),
       ),
@@ -199,7 +199,7 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
                   ),
                   onSelected: (_) { eqController.setVisualBandCount(count); },
                 ),
-              ),
+              );
             }).toList(),
           ),
           const SizedBox(height: 12),
@@ -273,7 +273,7 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
               ],
             ),
           ),
-        ),
+        );
       }).toList(),
     );
   }
@@ -351,7 +351,7 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
                       ? (_) { eqController.setBassFrequency(hz); }
                       : null,
                 ),
-              ),
+              );
             }).toList(),
           ),
         ],
