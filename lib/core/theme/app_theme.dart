@@ -9,7 +9,7 @@ class AuraColors {
   static const Color accent      = Color(0xFFFF4081);
   static const Color text        = Color(0xFFE8E8F0);
   static const Color textMuted   = Color(0xFF8888AA);
-  static const Color textTertiary = Color(0xFF555570);
+  static const Color textTertiary = Color(0xFF70708A);
   static const Color divider     = Color(0xFF2A2A3A);
   static const Color success     = Color(0xFF4CAF50);
   static const Color error       = Color(0xFFEF5350);
@@ -19,7 +19,7 @@ class AuraColors {
   static const Color lightSurfaceHigh = Color(0xFFF0F0F5);
   static const Color lightText        = Color(0xFF1A1A2E);
   static const Color lightTextMuted   = Color(0xFF6B6B80);
-  static const Color lightTextTertiary = Color(0xFF9999AA);
+  static const Color lightTextTertiary = Color(0xFF7E7E92);
   static const Color lightDivider     = Color(0xFFE0E0E5);
   static const Color lightSuccess     = Color(0xFF388E3C);
   static const Color lightError       = Color(0xFFD32F2F);

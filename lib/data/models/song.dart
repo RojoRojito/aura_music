@@ -11,6 +11,7 @@ class Song {
   final String? genre;
   final int? year;
   final int? trackNumber;
+  final int? dateAdded;
 
   Song({
     required this.id,
@@ -25,6 +26,7 @@ class Song {
     this.genre,
     this.year,
     this.trackNumber,
+    this.dateAdded,
   });
 
   String get durationFormatted {
@@ -47,6 +49,7 @@ class Song {
     'genre': genre,
     'year': year,
     'trackNumber': trackNumber,
+    'dateAdded': dateAdded,
   };
 
   factory Song.fromJson(Map<String, dynamic> json) => Song(
@@ -62,6 +65,7 @@ class Song {
     genre: json['genre'] as String?,
     year: json['year'] as int?,
     trackNumber: json['trackNumber'] as int?,
+    dateAdded: json['dateAdded'] as int?,
   );
 
   @override

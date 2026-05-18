@@ -5,7 +5,7 @@ import '../../core/theme/app_theme.dart';
 import '../../data/models/song.dart';
 import '../../data/models/playlist.dart';
 import '../../data/repositories/playlist_repository.dart';
-import '../widgets/aura_animations.dart';
+import 'aura_animations.dart';
 import '../features/player/player_controller.dart';
 
 class AddToPlaylistSheet extends StatelessWidget {

@@ -55,13 +55,13 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
                       id: widget.album.id, type: ArtworkType.ALBUM,
                       nullArtworkWidget: Container(
                         color: AuraColors.surfaceHigh,
-                        child: const Icon(Icons.album, color: AuraColors.primary, size: 80)))),
+                        child: const Icon(Icons.album, color: AuraColors.primary, size: 80))))),
                 Positioned.fill(
                   child: Container(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                        colors: [Colors.transparent, AuraColors.background.withOpacity(0.8)])))),
+                        colors: [Colors.transparent, AuraColors.background.withOpacity(0.8)])))))),
               ]),
             ),
           ),

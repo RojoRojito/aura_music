@@ -93,5 +93,6 @@ class MediaScanner {
     genre: s.genre,
     year: null,
     trackNumber: s.track,
+    dateAdded: s.dateAdded,
   );
 }

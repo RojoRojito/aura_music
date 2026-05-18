@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/tokens/tokens.dart';
 import '../../data/repositories/favorites_repository.dart';
-import '../../services/audio_handler.dart';
 import '../../services/dynamic_theme_service.dart';
 import '../../services/equalizer_service.dart';
 import 'player_controller.dart';
@@ -21,6 +20,7 @@ class _PlayerScreenState extends State<PlayerScreen>
     with SingleTickerProviderStateMixin {
   bool _isSeeking = false;
   double _seekPosition = 0;
+  double _playScale = 1.0;
   late AnimationController _bgController;
   late Animation<double> _bgAnimation;
 
@@ -157,9 +157,10 @@ class _PlayerScreenState extends State<PlayerScreen>
           builder: (ctx, child) {
             return Material(
               color: Colors.transparent,
-              child: to,
+              child: child,
             );
           },
+          child: to.widget,
         );
       },
       child: AnimatedScale(
@@ -330,13 +331,13 @@ class _PlayerScreenState extends State<PlayerScreen>
             },
           ),
           GestureDetector(
-            onTapDown: (_) => _playScale = 0.95,
+            onTapDown: (_) => setState(() => _playScale = 0.95),
             onTapUp: (_) {
-              _playScale = 1.0;
+              setState(() => _playScale = 1.0);
               ctrl.togglePlay();
               HapticFeedback.mediumImpact();
             },
-            onTapCancel: () => _playScale = 1.0,
+            onTapCancel: () => setState(() => _playScale = 1.0),
             child: AnimatedScale(
               scale: _playScale,
               duration: AuraAnimation.instant,
@@ -362,6 +363,7 @@ class _PlayerScreenState extends State<PlayerScreen>
                 color: Colors.white,
                 size: 40,
               ),
+            ),
             ),
           ),
           IconButton(

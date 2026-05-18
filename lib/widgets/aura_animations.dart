@@ -114,11 +114,13 @@ Future<T?> showAuraDialog<T>({
   bool barrierDismissible = true,
   Color? barrierColor,
 }) {
-  return showDialog<T>(
+  return showGeneralDialog<T>(
     context: context,
     barrierDismissible: barrierDismissible,
+    barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
     barrierColor: barrierColor ?? Colors.black54,
-    builder: builder,
+    transitionDuration: AuraAnimation.slow,
+    pageBuilder: (ctx, anim, secAnim) => builder(ctx),
     transitionBuilder: (ctx, anim, secAnim, child) {
       return ScaleTransition(
         scale: Tween<double>(begin: 0.9, end: 1.0).animate(

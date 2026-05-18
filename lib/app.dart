@@ -147,7 +147,7 @@ class _ShellState extends State<_Shell> with TickerProviderStateMixin {
 }
 
 class _LibraryShell extends StatefulWidget {
-  const _LibraryShell();
+  const _LibraryShell({super.key});
   @override State<_LibraryShell> createState() => _LibraryShellState();
 }
 

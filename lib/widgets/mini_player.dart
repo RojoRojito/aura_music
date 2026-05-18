@@ -10,8 +10,7 @@ import '../features/player/player_screen.dart';
 import '../services/audio_handler.dart';
 import '../services/dynamic_theme_service.dart';
 import 'aura_glass.dart';
-
-import '../widgets/aura_animations.dart';
+import 'aura_animations.dart';
 
 class MiniPlayer extends StatelessWidget {
   const MiniPlayer({super.key});
@@ -107,9 +106,10 @@ class MiniPlayer extends StatelessWidget {
           builder: (ctx, child) {
             return Material(
               color: Colors.transparent,
-              child: to,
+              child: child,
             );
           },
+          child: to.widget,
         );
       },
       child: ClipRRect(
