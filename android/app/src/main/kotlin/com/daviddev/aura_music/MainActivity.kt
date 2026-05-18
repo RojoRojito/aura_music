@@ -239,7 +239,7 @@ class MainActivity : FlutterActivity() {
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             try {
-                dynamicsProcessing = DynamicsProcessing(false, false, false, false, true)
+                dynamicsProcessing = DynamicsProcessing(2)
                 dynamicsProcessing!!.enabled = false
 
                 // Set default limiter params
