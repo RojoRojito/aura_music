@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/tokens/tokens.dart';
 import '../../data/repositories/favorites_repository.dart';
+import '../../services/audio_handler.dart';
 import '../../services/dynamic_theme_service.dart';
 import '../../services/equalizer_service.dart';
 import 'player_controller.dart';
