@@ -30,7 +30,6 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
   Widget build(BuildContext context) {
     // Use the new controller for all operations
     final eqController = context.watch<EqualizerController>();
-    final eqService = context.watch<EqualizerService>();
 
     if (!eqController.isAvailable) {
       return Scaffold(

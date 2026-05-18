@@ -46,7 +46,7 @@ class EqualizerService extends ChangeNotifier {
   EqualizerService(this._eqRepository) {
     _nativeService = NativeEqualizerService();
     _state = EqualizerState(_eqRepository, _nativeService);
-    _controller = EqualizerController(_state, _nativeService, _eqRepository);
+    _controller = EqualizerController(_state, _nativeService);
 
     // Forward state changes to notifyListeners for backward compatibility
     _state.addListener(() => notifyListeners());
