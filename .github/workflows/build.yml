@@ -52,11 +52,10 @@ jobs:
           mkdir -p android/app/src/main/
           cp AndroidManifest.xml.bak android/app/src/main/AndroidManifest.xml
 
-          # 7. Restaurar archivos Kotlin nativos (overwrite generated ones)
+          # 7. Restaurar TODOS los archivos Kotlin nativos (overwrite generated ones)
           echo "=== native_backup contents ==="
           find native_backup -type f
-          # The backup is at native_backup/aura_music/MainActivity.kt (flattened path)
-          cp -f native_backup/aura_music/MainActivity.kt android/app/src/main/kotlin/com/daviddev/aura_music/MainActivity.kt
+          cp -rf native_backup/aura_music/* android/app/src/main/kotlin/com/daviddev/aura_music/
           echo "=== MainActivity.kt AFTER overwrite ==="
           head -5 android/app/src/main/kotlin/com/daviddev/aura_music/MainActivity.kt
 
