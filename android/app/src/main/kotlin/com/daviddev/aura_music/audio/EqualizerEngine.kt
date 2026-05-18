@@ -8,9 +8,6 @@ import android.media.audiofx.Virtualizer
 import android.media.audiofx.LoudnessEnhancer
 import android.os.Build
 import android.util.Log
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * EqualizerEngine — Core DSP engine for AURA Music.
@@ -26,7 +23,6 @@ import kotlinx.coroutines.flow.asStateFlow
  *
  * Thread safety:
  * - All public methods are synchronized on the engine lock
- * - State flows are used for reactive state observation from Flutter
  */
 class EqualizerEngine(private val context: Context) {
 
@@ -50,18 +46,9 @@ class EqualizerEngine(private val context: Context) {
 
     private var currentSessionId: Int = -1
     private var isInitialized: Boolean = false
-
-    // Engine mode: "dynamics_processing" | "legacy" | "unavailable"
-    private val _engineMode = MutableStateFlow<String>("unavailable")
-    val engineMode: StateFlow<String> = _engineMode.asStateFlow()
-
-    // Native band count (from active EQ)
-    private val _nativeBandCount = MutableStateFlow(0)
-    val nativeBandCount: StateFlow<Int> = _nativeBandCount.asStateFlow()
-
-    // Native band frequencies in Hz
-    private val _nativeBandFrequencies = MutableStateFlow<List<Int>>(emptyList())
-    val nativeBandFrequencies: StateFlow<List<Int>> = _nativeBandFrequencies.asStateFlow()
+    private var engineMode: String = "unavailable" // "dynamics_processing" | "legacy" | "unavailable"
+    private var nativeBandCount: Int = 0
+    private var nativeBandFrequencies: List<Int> = emptyList()
 
     // ─── Configuration State ──────────────────────────────────
 
@@ -80,15 +67,14 @@ class EqualizerEngine(private val context: Context) {
     private var limiterRelease: Float = 100.0f
     private var limiterPostGain: Float = 0.0f
 
+    // ─── Getters ──────────────────────────────────────────────
+
+    fun getEngineMode(): String = engineMode
+    fun getNativeBandCount(): Int = nativeBandCount
+    fun getNativeBandFrequencies(): List<Int> = nativeBandFrequencies
+
     // ─── Public API ───────────────────────────────────────────
 
-    /**
-     * Initialize the DSP engine with an audio session ID.
-     * This is the main entry point called when a new audio session is available.
-     *
-     * Automatically selects DynamicsProcessing (primary) or legacy fallback.
-     * Rebuilds the entire DSP chain if the session changes.
-     */
     @Synchronized
     fun initSession(sessionId: Int) {
         Log.i(TAG, "initSession: sessionId=$sessionId (previous=$currentSessionId)")
@@ -98,92 +84,63 @@ class EqualizerEngine(private val context: Context) {
             return
         }
 
-        // If session changed, release old chain
         if (sessionId != currentSessionId) {
             releaseAllEffects()
             currentSessionId = sessionId
         }
 
-        // Try primary engine first
         val primaryOk = tryInitDynamicsProcessing(sessionId)
 
         if (primaryOk) {
-            _engineMode.value = "dynamics_processing"
+            engineMode = "dynamics_processing"
             Log.i(TAG, "initSession: using DynamicsProcessing (primary)")
         } else {
-            // Fallback to legacy chain
             val fallbackOk = tryInitLegacyChain(sessionId)
             if (fallbackOk) {
-                _engineMode.value = "legacy"
+                engineMode = "legacy"
                 Log.i(TAG, "initSession: using legacy fallback chain")
             } else {
-                _engineMode.value = "unavailable"
+                engineMode = "unavailable"
                 Log.e(TAG, "initSession: NO DSP engine available")
             }
         }
 
         isInitialized = true
-
-        // Reapply stored configuration
         reapplyConfiguration()
-
-        Log.i(TAG, "initSession complete: mode=${_engineMode.value}")
+        Log.i(TAG, "initSession complete: mode=$engineMode")
     }
 
-    /**
-     * Release all DSP resources. Called on session close or engine destruction.
-     */
     @Synchronized
     fun release() {
         Log.i(TAG, "release: releasing all DSP resources")
         releaseAllEffects()
         currentSessionId = -1
         isInitialized = false
-        _engineMode.value = "unavailable"
-        _nativeBandCount.value = 0
-        _nativeBandFrequencies.value = emptyList()
+        engineMode = "unavailable"
+        nativeBandCount = 0
+        nativeBandFrequencies = emptyList()
     }
 
-    /**
-     * Get the active audio session ID.
-     */
-    @Synchronized
     fun getSessionId(): Int = currentSessionId
-
-    /**
-     * Check if the engine is ready to process audio.
-     */
-    fun isReady(): Boolean = isInitialized && _engineMode.value != "unavailable"
+    fun isReady(): Boolean = isInitialized && engineMode != "unavailable"
 
     // ─── EQ Band Operations ───────────────────────────────────
 
-    /**
-     * Set gain for a specific EQ band (in dB).
-     * Works with both DynamicsProcessing and legacy Equalizer.
-     */
     @Synchronized
     fun setBandGain(bandIndex: Int, gainDb: Double) {
-        if (!isReady()) {
-            Log.w(TAG, "setBandGain: engine not ready")
-            return
-        }
+        if (!isReady()) return
 
         val clampedGain = gainDb.toFloat().coerceIn(-12f, 12f)
-
-        // Update stored state
         if (bandIndex < bandGains.size) {
             bandGains[bandIndex] = clampedGain
         }
 
-        when (_engineMode.value) {
+        when (engineMode) {
             "dynamics_processing" -> applyBandGainDynamicsProcessing(bandIndex, clampedGain)
             "legacy" -> applyBandGainLegacy(bandIndex, clampedGain)
         }
     }
 
-    /**
-     * Set all EQ band gains at once.
-     */
     @Synchronized
     fun setAllBandGains(gains: List<Double>) {
         if (!isReady()) return
@@ -192,7 +149,7 @@ class EqualizerEngine(private val context: Context) {
             gains[i].toFloat().coerceIn(-12f, 12f)
         }
 
-        when (_engineMode.value) {
+        when (engineMode) {
             "dynamics_processing" -> applyAllBandsDynamicsProcessing()
             "legacy" -> applyAllBandsLegacy()
         }
@@ -204,12 +161,12 @@ class EqualizerEngine(private val context: Context) {
     fun setBassBoost(gainDb: Double) {
         bassBoostStrength = gainDb.toFloat().coerceIn(0f, 15f)
 
-        when (_engineMode.value) {
+        when (engineMode) {
             "dynamics_processing" -> applyBassBoostDynamicsProcessing()
             "legacy" -> {
                 bassBoost?.let { bb ->
                     if (bb.strengthSupported) {
-                        val strength = ((bassBoostStrength / 15f) * 600).toInt().coerceIn(0, 600)
+                        val strength = ((bassBoostStrength / 15f) * 1000).toInt().coerceIn(0, 1000)
                         bb.strength = strength.toShort()
                     }
                 }
@@ -223,12 +180,12 @@ class EqualizerEngine(private val context: Context) {
     fun setVirtualizer(strength: Double) {
         virtualizerStrength = strength.toFloat().coerceIn(0f, 1f)
 
-        when (_engineMode.value) {
+        when (engineMode) {
             "dynamics_processing" -> applyVirtualizerDynamicsProcessing()
             "legacy" -> {
                 virtualizer?.let { v ->
                     if (v.strengthSupported) {
-                        val s = (virtualizerStrength * 500).toInt().coerceIn(0, 500)
+                        val s = (virtualizerStrength * 1000).toInt().coerceIn(0, 1000)
                         v.strength = s.toShort()
                     }
                 }
@@ -245,7 +202,7 @@ class EqualizerEngine(private val context: Context) {
         loudnessEnhancer?.let { le ->
             try {
                 le.setTargetGain((loudnessGain * 100).toInt())
-                Log.d(TAG, "setLoudness: ${loudnessGain}dB → targetGainMb=${(loudnessGain * 100).toInt()}")
+                Log.d(TAG, "setLoudness: ${loudnessGain}dB")
             } catch (e: Exception) {
                 Log.e(TAG, "setLoudness ERROR", e)
             }
@@ -265,13 +222,13 @@ class EqualizerEngine(private val context: Context) {
         }
     }
 
-    // ─── Limiter (DynamicsProcessing) ─────────────────────────
+    // ─── Limiter ──────────────────────────────────────────────
 
     @Synchronized
     fun setLimiterEnabled(enabled: Boolean) {
         limiterEnabled = enabled
 
-        if (_engineMode.value == "dynamics_processing") {
+        if (engineMode == "dynamics_processing") {
             dynamicsProcessing?.let { dp ->
                 try {
                     dp.enabled = enabled
@@ -297,7 +254,7 @@ class EqualizerEngine(private val context: Context) {
         limiterRelease = release.toFloat()
         limiterPostGain = postGain.toFloat()
 
-        if (_engineMode.value == "dynamics_processing") {
+        if (engineMode == "dynamics_processing") {
             applyLimiterDynamicsProcessing()
         }
     }
@@ -308,32 +265,14 @@ class EqualizerEngine(private val context: Context) {
     fun setEnabled(enabled: Boolean) {
         eqEnabled = enabled
 
-        dynamicsProcessing?.let { dp ->
-            try { dp.enabled = enabled } catch (_: Exception) {}
-        }
-        equalizer?.let { eq ->
-            try { eq.enabled = enabled } catch (_: Exception) {}
-        }
-        bassBoost?.let { bb ->
-            try { bb.enabled = enabled } catch (_: Exception) {}
-        }
-        virtualizer?.let { v ->
-            try { v.enabled = enabled } catch (_: Exception) {}
-        }
-        // Loudness enhancer has its own enabled state
+        dynamicsProcessing?.let { dp -> try { dp.enabled = enabled } catch (_: Exception) {} }
+        equalizer?.let { eq -> try { eq.enabled = enabled } catch (_: Exception) {} }
+        bassBoost?.let { bb -> try { bb.enabled = enabled } catch (_: Exception) {} }
+        virtualizer?.let { v -> try { v.enabled = enabled } catch (_: Exception) {} }
     }
 
-    // ─── Internal: DynamicsProcessing Initialization ──────────
+    // ─── Internal: DynamicsProcessing ─────────────────────────
 
-    /**
-     * Try to initialize DynamicsProcessing as the primary DSP engine.
-     * DynamicsProcessing provides:
-     * - Full parametric EQ via DynamicsProcessing.EqBand
-     * - Built-in limiter via DynamicsProcessing.Limiter
-     * - Compressor stages (optional)
-     *
-     * Returns true if initialization succeeded.
-     */
     private fun tryInitDynamicsProcessing(sessionId: Int): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
             Log.i(TAG, "DynamicsProcessing: API < 28, skipping")
@@ -341,26 +280,14 @@ class EqualizerEngine(private val context: Context) {
         }
 
         return try {
-            // DynamicsProcessing doesn't take sessionId in constructor —
-            // it attaches to the audio session via AudioEffect's internal mechanism
-            // when used with just_audio's audio session.
-            // We create it with 2 channels (stereo) as default.
-            val dp = DynamicsProcessing(2) // 2 channels = stereo
+            val dp = DynamicsProcessing(2) // stereo
 
-            // Configure EQ bands — we'll set these properly when config is applied
-            val numBands = dp.channelCount
-            Log.i(TAG, "DynamicsProcessing: channels=${dp.channelCount}")
-
-            // Set up default EQ bands (will be reconfigured when config arrives)
             setupDefaultEqBands(dp)
-
-            // Set up default limiter (disabled initially)
             setupDefaultLimiter(dp)
 
             dp.enabled = eqEnabled
             dynamicsProcessing = dp
 
-            // Extract band info for Flutter UI
             extractDynamicsProcessingBandInfo(dp)
 
             Log.i(TAG, "DynamicsProcessing initialized OK")
@@ -372,96 +299,63 @@ class EqualizerEngine(private val context: Context) {
         }
     }
 
-    /**
-     * Set up default EQ bands on DynamicsProcessing.
-     * Creates a standard set of frequency bands covering the audible spectrum.
-     */
     private fun setupDefaultEqBands(dp: DynamicsProcessing) {
-        // Standard 5-band EQ as baseline (will be reconfigured)
         val frequencies = floatArrayOf(60f, 230f, 910f, 3600f, 14000f)
-        val numBands = frequencies.size
 
-        // Initialize band gains array
-        bandGains = FloatArray(numBands) { 0f }
+        bandGains = FloatArray(frequencies.size) { 0f }
 
         for (ch in 0 until dp.channelCount) {
             for (i in frequencies.indices) {
                 val eqBand = DynamicsProcessing.EqBand(
-                    true,    // enabled
-                    true,    // active
-                    frequencies[i], // center frequency in Hz
-                    1.0f,    // Q factor (bandwidth)
-                    0.0f,    // gain in dB (flat)
-                    0.0f     // phase (not used)
+                    true, true, frequencies[i], 1.0f, 0.0f, 0.0f
                 )
                 dp.setEqBand(ch, i, eqBand)
             }
         }
     }
 
-    /**
-     * Set up default limiter on DynamicsProcessing.
-     * Limiter prevents clipping when EQ boosts cause signal overflow.
-     */
     private fun setupDefaultLimiter(dp: DynamicsProcessing) {
         val defaultLimiter = DynamicsProcessing.Limiter(
-            true,            // enabled
-            true,            // limiter mode (not compressor)
-            1,               // link group (all channels linked)
-            limiterAttack,   // attack time in ms
-            limiterRelease,  // release time in ms
-            limiterRatio,    // ratio (∞:1 for limiter)
-            limiterThreshold,// threshold in dB
-            limiterPostGain  // post-gain in dB
+            true, true, 1,
+            limiterAttack, limiterRelease, limiterRatio,
+            limiterThreshold, limiterPostGain
         )
         dp.setLimiterAllChannelsTo(defaultLimiter)
         dp.enabled = limiterEnabled
     }
 
-    /**
-     * Extract band count and frequencies from DynamicsProcessing for Flutter UI.
-     */
     private fun extractDynamicsProcessingBandInfo(dp: DynamicsProcessing) {
-        // DynamicsProcessing uses the same band configuration across all channels
-        // We read from channel 0
         val channel = 0
         val bandCount = dp.getEqBandCount(channel)
 
-        _nativeBandCount.value = bandCount
+        nativeBandCount = bandCount
 
         val freqs = mutableListOf<Int>()
         for (i in 0 until bandCount) {
             val band = dp.getEqBand(channel, i)
             freqs.add(band.frequency.toInt())
         }
-        _nativeBandFrequencies.value = freqs
+        nativeBandFrequencies = freqs
 
         Log.i(TAG, "DP band info: count=$bandCount, freqs=$freqs")
     }
 
-    // ─── Internal: Legacy Chain Initialization ────────────────
+    // ─── Internal: Legacy Chain ───────────────────────────────
 
-    /**
-     * Try to initialize the legacy audio effects chain.
-     * Fallback path for devices that don't support DynamicsProcessing.
-     */
     private fun tryInitLegacyChain(sessionId: Int): Boolean {
         var anyOk = false
 
         try {
             equalizer = Equalizer(PRIORITY, sessionId).apply { enabled = eqEnabled }
             val numBands = equalizer!!.numberOfBands.toInt()
-
-            // Initialize band gains array to match native bands
             bandGains = FloatArray(numBands) { 0f }
 
-            // Extract native band frequencies
             val freqs = mutableListOf<Int>()
             for (i in 0 until numBands) {
-                freqs.add(equalizer!!.getCenterFreq(i.toShort()) / 1000) // mHz → Hz
+                freqs.add(equalizer!!.getCenterFreq(i.toShort()) / 1000)
             }
-            _nativeBandCount.value = numBands
-            _nativeBandFrequencies.value = freqs
+            nativeBandCount = numBands
+            nativeBandFrequencies = freqs
 
             anyOk = true
             Log.i(TAG, "Legacy Equalizer OK: bands=$numBands")
@@ -538,7 +432,6 @@ class EqualizerEngine(private val context: Context) {
             try {
                 val numBands = eq.numberOfBands.toInt()
                 if (bandIndex in 0 until numBands) {
-                    // Convert dB to millibels (Android Equalizer uses mB)
                     val levelMb = (gainDb * 100).toInt().toShort()
                     eq.setBandLevel(bandIndex.toShort(), levelMb)
                 }
@@ -563,8 +456,6 @@ class EqualizerEngine(private val context: Context) {
     }
 
     private fun applyBassBoostDynamicsProcessing() {
-        // In DynamicsProcessing mode, bass boost is applied as an EQ band boost
-        // on the lowest frequency band
         dynamicsProcessing?.let { dp ->
             try {
                 val channel = 0
@@ -580,27 +471,20 @@ class EqualizerEngine(private val context: Context) {
     }
 
     private fun applyVirtualizerDynamicsProcessing() {
-        // Virtualizer is not available in DynamicsProcessing mode
-        // This is a known limitation — virtualizer is a separate Android effect
-        Log.d(TAG, "applyVirtualizerDynamicsProcessing: virtualizer not available in DP mode")
+        Log.d(TAG, "applyVirtualizerDynamicsProcessing: not available in DP mode")
     }
 
     private fun applyLimiterDynamicsProcessing() {
         dynamicsProcessing?.let { dp ->
             try {
                 val limiter = DynamicsProcessing.Limiter(
-                    true,
-                    true,
-                    1,
-                    limiterAttack,
-                    limiterRelease,
-                    limiterRatio,
-                    limiterThreshold,
-                    limiterPostGain
+                    true, true, 1,
+                    limiterAttack, limiterRelease, limiterRatio,
+                    limiterThreshold, limiterPostGain
                 )
                 dp.setLimiterAllChannelsTo(limiter)
                 dp.enabled = limiterEnabled
-                Log.d(TAG, "applyLimiterDynamicsProcessing: threshold=$limiterThreshold, ratio=$limiterRatio")
+                Log.d(TAG, "applyLimiterDynamicsProcessing OK")
             } catch (e: Exception) {
                 Log.e(TAG, "applyLimiterDynamicsProcessing ERROR", e)
             }
@@ -609,10 +493,6 @@ class EqualizerEngine(private val context: Context) {
 
     // ─── Internal: Configuration Reapplication ────────────────
 
-    /**
-     * Reapply all stored configuration to the newly created DSP chain.
-     * Called after session change or engine recreation.
-     */
     private fun reapplyConfiguration() {
         Log.d(TAG, "reapplyConfiguration: reapplying stored DSP state")
 
@@ -624,10 +504,8 @@ class EqualizerEngine(private val context: Context) {
         setLoudnessEnabled(loudnessEnabled)
         setLimiterEnabled(limiterEnabled)
         setLimiterParams(
-            limiterThreshold.toDouble(),
-            limiterRatio.toDouble(),
-            limiterAttack.toDouble(),
-            limiterRelease.toDouble(),
+            limiterThreshold.toDouble(), limiterRatio.toDouble(),
+            limiterAttack.toDouble(), limiterRelease.toDouble(),
             limiterPostGain.toDouble()
         )
     }

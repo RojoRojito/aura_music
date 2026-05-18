@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import '../data/models/eq_config.dart';
 import '../data/repositories/eq_repository.dart';
@@ -169,35 +170,7 @@ class EqualizerState extends ChangeNotifier {
     return 0.0;
   }
 
-  double _log(double x) {
-    // Natural log — same as dart:math log()
-    return _ln(x);
-  }
-
-  double _ln(double x) {
-    // Simple natural log approximation using dart:math
-    // We import it via the log function
-    var result = 0.0;
-    var y = x;
-    // Use the series expansion for ln
-    // ln(x) = 2 * (z + z^3/3 + z^5/5 + ...) where z = (x-1)/(x+1)
-    if (x <= 0) return 0.0;
-    // For better accuracy, use repeated squaring
-    var count = 0;
-    while (y > 2) {
-      y /= 2;
-      count++;
-    }
-    final z = (y - 1) / (y + 1);
-    var z2 = z * z;
-    var term = z;
-    result = z;
-    for (var i = 0; i < 20; i++) {
-      term *= z2;
-      result += term / (2 * i + 3);
-    }
-    return 2 * result + count * 0.6931471805599453;
-  }
+  double _log(double x) => log(x);
 
   /// Apply a full EQ configuration to the native DSP engine.
   Future<void> _applyFullConfig(EqConfig config) async {

@@ -13,26 +13,7 @@ import io.flutter.plugin.common.MethodChannel
  * - Return results/errors to Flutter
  * - NO DSP logic — pure delegation layer
  *
- * This class replaces the old pattern where MainActivity.kt handled
- * all DSP logic directly. Now MainActivity only registers this channel.
- *
  * MethodChannel: "com.daviddev.aura/equalizer"
- *
- * Supported methods:
- * - initSession({sessionId: Int})
- * - setEnabled({enabled: Boolean})
- * - getBandCount() → Int
- * - getBandFrequencies() → List<Int>
- * - setBandGain({bandIndex: Int, gainDb: Double})
- * - setBassBoost({gainDb: Double})
- * - setVirtualizer({strength: Double})
- * - setLoudness({gainDb: Double})
- * - setLoudnessEnabled({enabled: Boolean})
- * - setLimiterEnabled({enabled: Boolean})
- * - setLimiter({threshold, ratio, attack, release, postGain: Double})
- * - setBassFrequency({hz: Int}) — handled in Dart, no-op here
- * - getEngineMode() → String
- * - reinitializeSession()
  */
 class NativeEqualizerChannel(
     private val engine: EqualizerEngine,
@@ -70,8 +51,6 @@ class NativeEqualizerChannel(
         }
     }
 
-    // ─── Method Handlers ──────────────────────────────────────
-
     private fun handleInitSession(call: MethodCall, result: MethodChannel.Result) {
         val sessionId = call.argument<Int>("sessionId") ?: 0
         Log.i(TAG, ">> initSession: sessionId=$sessionId")
@@ -82,8 +61,7 @@ class NativeEqualizerChannel(
             return
         }
 
-        val accepted = sessionManager.onNewSessionId(sessionId)
-        Log.i(TAG, "initSession: accepted=$accepted")
+        sessionManager.onNewSessionId(sessionId)
         result.success(null)
     }
 
@@ -95,13 +73,13 @@ class NativeEqualizerChannel(
     }
 
     private fun handleGetBandCount(result: MethodChannel.Result) {
-        val count = engine.nativeBandCount.value
+        val count = engine.getNativeBandCount()
         Log.d(TAG, ">> getBandCount: $count")
         result.success(count)
     }
 
     private fun handleGetBandFrequencies(result: MethodChannel.Result) {
-        val freqs = engine.nativeBandFrequencies.value
+        val freqs = engine.getNativeBandFrequencies()
         Log.d(TAG, ">> getBandFrequencies: $freqs")
         result.success(freqs)
     }
@@ -110,7 +88,6 @@ class NativeEqualizerChannel(
         val bandIndex = call.argument<Int>("bandIndex") ?: 0
         val gainDb = call.argument<Double>("gainDb") ?: 0.0
         Log.d(TAG, ">> setBandGain: band=$bandIndex, gain=$gainDb dB")
-
         engine.setBandGain(bandIndex, gainDb)
         result.success(null)
     }
@@ -118,7 +95,6 @@ class NativeEqualizerChannel(
     private fun handleSetBassBoost(call: MethodCall, result: MethodChannel.Result) {
         val gainDb = call.argument<Double>("gainDb") ?: 0.0
         Log.d(TAG, ">> setBassBoost: gain=$gainDb dB")
-
         engine.setBassBoost(gainDb)
         result.success(null)
     }
@@ -126,7 +102,6 @@ class NativeEqualizerChannel(
     private fun handleSetVirtualizer(call: MethodCall, result: MethodChannel.Result) {
         val strength = call.argument<Double>("strength") ?: 0.0
         Log.d(TAG, ">> setVirtualizer: strength=$strength")
-
         engine.setVirtualizer(strength)
         result.success(null)
     }
@@ -134,7 +109,6 @@ class NativeEqualizerChannel(
     private fun handleSetLoudness(call: MethodCall, result: MethodChannel.Result) {
         val gainDb = call.argument<Double>("gainDb") ?: 0.0
         Log.d(TAG, ">> setLoudness: gain=$gainDb dB")
-
         engine.setLoudness(gainDb)
         result.success(null)
     }
@@ -142,7 +116,6 @@ class NativeEqualizerChannel(
     private fun handleSetLoudnessEnabled(call: MethodCall, result: MethodChannel.Result) {
         val enabled = call.argument<Boolean>("enabled") ?: false
         Log.d(TAG, ">> setLoudnessEnabled: $enabled")
-
         engine.setLoudnessEnabled(enabled)
         result.success(null)
     }
@@ -150,7 +123,6 @@ class NativeEqualizerChannel(
     private fun handleSetLimiterEnabled(call: MethodCall, result: MethodChannel.Result) {
         val enabled = call.argument<Boolean>("enabled") ?: false
         Log.d(TAG, ">> setLimiterEnabled: $enabled")
-
         engine.setLimiterEnabled(enabled)
         result.success(null)
     }
@@ -163,19 +135,17 @@ class NativeEqualizerChannel(
         val postGain = call.argument<Double>("postGain") ?: 0.0
 
         Log.d(TAG, ">> setLimiter: threshold=$threshold, ratio=$ratio, attack=$attack, release=$release, postGain=$postGain")
-
         engine.setLimiterParams(threshold, ratio, attack, release, postGain)
         result.success(null)
     }
 
     private fun handleSetBassFrequency(call: MethodCall, result: MethodChannel.Result) {
-        // Handled entirely in Dart — no native action needed
         Log.d(TAG, ">> setBassFrequency: handled in Dart")
         result.success(null)
     }
 
     private fun handleGetEngineMode(result: MethodChannel.Result) {
-        val mode = engine.engineMode.value
+        val mode = engine.getEngineMode()
         Log.d(TAG, ">> getEngineMode: $mode")
         result.success(mode)
     }
