@@ -3,6 +3,7 @@ import '../../data/models/song.dart';
 import '../../data/models/song_stats.dart';
 import '../../data/repositories/stats_repository.dart';
 import '../../services/media_scanner.dart';
+import 'engagement_scorer.dart';
 
 class RecommendationEngine extends ChangeNotifier {
   final StatsRepository statsRepository;
@@ -25,7 +26,11 @@ class RecommendationEngine extends ChangeNotifier {
 
     _allStats = await statsRepository.getAllStats();
 
-    final scored = _allStats.map((s) => s.copyWith(score: s.computeScore())).toList();
+    final scored = _allStats
+        .map((s) => s.copyWith(
+            score: EngagementScorer.compute(s),
+            engagementScore: EngagementScorer.compute(s)))
+        .toList();
 
     _topPicks = scored
         .where((s) => s.playCount > 0 || s.isFavorite)
@@ -45,7 +50,8 @@ class RecommendationEngine extends ChangeNotifier {
 
   Future<void> refresh() => compute();
 
-  Future<List<Song>> statsToSongs(List<SongStats> stats, MediaScanner scanner) async {
+  Future<List<Song>> statsToSongs(
+      List<SongStats> stats, MediaScanner scanner) async {
     final songs = <Song>[];
     for (final stat in stats) {
       final song = await scanner.getSongById(stat.songId);

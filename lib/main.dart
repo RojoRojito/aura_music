@@ -16,6 +16,9 @@ import 'features/settings/settings_controller.dart';
 import 'data/repositories/eq_repository.dart';
 import 'services/dynamic_theme_service.dart';
 import 'services/equalizer_service.dart';
+import 'services/native_equalizer_service.dart';
+import 'services/equalizer_state.dart';
+import 'features/equalizer/equalizer_controller.dart';
 import 'features/discover/recommendation_engine.dart';
 
 Future<void> main() async {
@@ -53,7 +56,12 @@ Future<void> main() async {
     audioHandler = AuraAudioHandler();
   }
 
+  // New architecture: create the DSP components
+  final nativeEqualizerService = NativeEqualizerService();
   final equalizerService = EqualizerService(eqRepository);
+  final equalizerState = equalizerService.state;
+  final equalizerController = equalizerService.controller;
+
   await equalizerService.loadGlobal();
 
   final playerController = PlayerController(audioHandler);
@@ -88,9 +96,10 @@ Future<void> main() async {
     });
   };
 
+  // Audio session ID callback — forward to new DSP engine
   audioHandler.onAudioSessionId = (sessionId) {
     debugPrint('[main] onAudioSessionId callback FIRED: sessionId=$sessionId');
-    equalizerService.initSession(sessionId);
+    equalizerController.initSession(sessionId);
   };
   debugPrint('[main] onAudioSessionId callback SET on handler');
 
@@ -112,7 +121,12 @@ Future<void> main() async {
       }),
       ChangeNotifierProvider.value(value: favoritesRepository),
       ChangeNotifierProvider<EqRepository>(create: (_) => eqRepository),
+      // Legacy provider for backward compatibility
       ChangeNotifierProvider<EqualizerService>.value(value: equalizerService),
+      // New architecture providers
+      Provider<NativeEqualizerService>.value(value: nativeEqualizerService),
+      ChangeNotifierProvider<EqualizerState>.value(value: equalizerState),
+      ChangeNotifierProvider<EqualizerController>.value(value: equalizerController),
       ChangeNotifierProvider.value(value: settingsController),
       ChangeNotifierProvider.value(value: themeService),
       ChangeNotifierProvider<RecommendationEngine>.value(value: recommendationEngine),

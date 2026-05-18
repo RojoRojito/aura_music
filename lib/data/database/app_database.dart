@@ -1,7 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
-const int _currentVersion = 3;
+const int _currentVersion = 4;
 
 typedef Migration = Future<void> Function(Database db, int from, int to);
 
@@ -10,7 +10,14 @@ final Map<int, Migration> _migrations = {
     // Add foreign key constraints support (enforced via PRAGMA in onOpen)
   },
   3: (db, from, to) async {
-    await db.execute('ALTER TABLE playlist_songs ADD COLUMN song_album TEXT DEFAULT ""');
+    await db.execute(
+        'ALTER TABLE playlist_songs ADD COLUMN song_album TEXT DEFAULT ""');
+  },
+  4: (db, from, to) async {
+    await db.execute(
+        'ALTER TABLE song_stats ADD COLUMN repeat_count INTEGER DEFAULT 0');
+    await db.execute(
+        'ALTER TABLE song_stats ADD COLUMN playlist_add_count INTEGER DEFAULT 0');
   },
 };
 
@@ -63,7 +70,9 @@ class AppDatabase {
          total_listened_seconds REAL NOT NULL DEFAULT 0,
          total_duration_seconds REAL NOT NULL DEFAULT 0,
          is_favorite INTEGER NOT NULL DEFAULT 0,
-         last_played TEXT)''',
+         last_played TEXT,
+         repeat_count INTEGER NOT NULL DEFAULT 0,
+         playlist_add_count INTEGER NOT NULL DEFAULT 0)''',
   ];
 
   Future<Database> get database async {

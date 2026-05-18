@@ -3,6 +3,7 @@ import 'package:sqflite/sqflite.dart';
 import '../database/app_database.dart';
 import '../models/playlist.dart';
 import '../models/song.dart';
+import 'stats_repository.dart';
 
 class PlaylistRepository extends ChangeNotifier {
   List<Playlist> _playlists = [];
@@ -36,18 +37,21 @@ class PlaylistRepository extends ChangeNotifier {
     final db = await database;
     final maps = await db.query('playlist_songs',
         where: 'playlist_id = ?', whereArgs: [plId], orderBy: 'position ASC');
-    return maps.map((m) => Song(
-      id: m['song_id'] as int,
-      title: m['song_title'] as String,
-      artist: m['song_artist'] as String,
-      album: (m['song_album'] as String?) ?? '',
-      uri: m['song_uri'] as String,
-      duration: m['song_duration'] as int,
-      albumId: m['album_id'] as int?,
-    )).toList();
+    return maps
+        .map((m) => Song(
+              id: m['song_id'] as int,
+              title: m['song_title'] as String,
+              artist: m['song_artist'] as String,
+              album: (m['song_album'] as String?) ?? '',
+              uri: m['song_uri'] as String,
+              duration: m['song_duration'] as int,
+              albumId: m['album_id'] as int?,
+            ))
+        .toList();
   }
 
-  Future<List<Song>> _getSongsResolved(int plId, Map<int, Song> songCache) async {
+  Future<List<Song>> _getSongsResolved(
+      int plId, Map<int, Song> songCache) async {
     final db = await database;
     final maps = await db.query('playlist_songs',
         where: 'playlist_id = ?', whereArgs: [plId], orderBy: 'position ASC');
@@ -82,21 +86,37 @@ class PlaylistRepository extends ChangeNotifier {
   Future<void> deletePlaylist(int id) async {
     final db = await database;
     await db.delete('playlists', where: 'id = ?', whereArgs: [id]);
-    await db.delete('playlist_songs', where: 'playlist_id = ?', whereArgs: [id]);
+    await db.delete('playlist_songs',
+        where: 'playlist_id = ?', whereArgs: [id]);
     await loadPlaylists();
   }
 
   Future<void> addSong(int plId, Song song) async {
     final db = await database;
     final count = Sqflite.firstIntValue(await db.rawQuery(
-        'SELECT COUNT(*) FROM playlist_songs WHERE playlist_id = ?', [plId])) ?? 0;
-    await db.insert('playlist_songs', {
-      'playlist_id': plId, 'song_id': song.id,
-      'song_title': song.title, 'song_artist': song.artist,
-      'song_album': song.album, 'song_uri': song.uri,
-      'song_duration': song.duration, 'album_id': song.albumId,
-      'position': count,
-    }, conflictAlgorithm: ConflictAlgorithm.ignore);
+            'SELECT COUNT(*) FROM playlist_songs WHERE playlist_id = ?',
+            [plId])) ??
+        0;
+    final inserted = await db.insert(
+      'playlist_songs',
+      {
+        'playlist_id': plId,
+        'song_id': song.id,
+        'song_title': song.title,
+        'song_artist': song.artist,
+        'song_album': song.album,
+        'song_uri': song.uri,
+        'song_duration': song.duration,
+        'album_id': song.albumId,
+        'position': count,
+      },
+      conflictAlgorithm: ConflictAlgorithm.ignore,
+    );
+
+    if (inserted > 0) {
+      await StatsRepository.instance.recordPlaylistAdd(song.id);
+    }
+
     await loadPlaylists();
   }
 

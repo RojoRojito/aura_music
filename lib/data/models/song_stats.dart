@@ -9,6 +9,9 @@ class SongStats {
   final bool isFavorite;
   final DateTime? lastPlayed;
   final double score;
+  final int repeatCount;
+  final int playlistAddCount;
+  final double engagementScore;
 
   SongStats({
     required this.songId,
@@ -21,6 +24,9 @@ class SongStats {
     this.isFavorite = false,
     this.lastPlayed,
     this.score = 0.0,
+    this.repeatCount = 0,
+    this.playlistAddCount = 0,
+    this.engagementScore = 0.0,
   });
 
   factory SongStats.fromMap(Map<String, dynamic> map) {
@@ -30,12 +36,18 @@ class SongStats {
       artist: map['artist'] as String,
       playCount: map['play_count'] as int? ?? 0,
       skipCount: map['skip_count'] as int? ?? 0,
-      totalListenedSeconds: (map['total_listened_seconds'] as num?)?.toDouble() ?? 0.0,
-      totalDurationSeconds: (map['total_duration_seconds'] as num?)?.toDouble() ?? 0.0,
+      totalListenedSeconds:
+          (map['total_listened_seconds'] as num?)?.toDouble() ?? 0.0,
+      totalDurationSeconds:
+          (map['total_duration_seconds'] as num?)?.toDouble() ?? 0.0,
       isFavorite: (map['is_favorite'] as int? ?? 0) == 1,
-      lastPlayed: map['last_played'] != null 
-          ? DateTime.parse(map['last_played'] as String) 
+      lastPlayed: map['last_played'] != null
+          ? DateTime.parse(map['last_played'] as String)
           : null,
+      repeatCount: map['repeat_count'] as int? ?? 0,
+      playlistAddCount: map['playlist_add_count'] as int? ?? 0,
+      engagementScore:
+          (map['engagement_score'] as num?)?.toDouble() ?? 0.0,
     );
   }
 
@@ -50,6 +62,9 @@ class SongStats {
       'total_duration_seconds': totalDurationSeconds,
       'is_favorite': isFavorite ? 1 : 0,
       'last_played': lastPlayed?.toIso8601String(),
+      'repeat_count': repeatCount,
+      'playlist_add_count': playlistAddCount,
+      'engagement_score': engagementScore,
     };
   }
 
@@ -64,23 +79,6 @@ class SongStats {
     return skipCount / total;
   }
 
-  double computeScore() {
-    final base = (playCount * 3.0)
-        + (completionRate * 5.0)
-        + (isFavorite ? 10.0 : 0.0)
-        - (skipRate * 4.0);
-
-    double recencyBonus = 0.0;
-    if (lastPlayed != null) {
-      final daysSince = DateTime.now().difference(lastPlayed!).inDays;
-      if (daysSince == 0) recencyBonus = 3.0;
-      else if (daysSince <= 3) recencyBonus = 2.0;
-      else if (daysSince <= 7) recencyBonus = 1.0;
-    }
-
-    return (base + recencyBonus).clamp(0.0, double.infinity);
-  }
-
   SongStats copyWith({
     int? songId,
     String? title,
@@ -92,6 +90,9 @@ class SongStats {
     bool? isFavorite,
     DateTime? lastPlayed,
     double? score,
+    int? repeatCount,
+    int? playlistAddCount,
+    double? engagementScore,
   }) {
     return SongStats(
       songId: songId ?? this.songId,
@@ -99,11 +100,16 @@ class SongStats {
       artist: artist ?? this.artist,
       playCount: playCount ?? this.playCount,
       skipCount: skipCount ?? this.skipCount,
-      totalListenedSeconds: totalListenedSeconds ?? this.totalListenedSeconds,
-      totalDurationSeconds: totalDurationSeconds ?? this.totalDurationSeconds,
+      totalListenedSeconds:
+          totalListenedSeconds ?? this.totalListenedSeconds,
+      totalDurationSeconds:
+          totalDurationSeconds ?? this.totalDurationSeconds,
       isFavorite: isFavorite ?? this.isFavorite,
       lastPlayed: lastPlayed ?? this.lastPlayed,
       score: score ?? this.score,
+      repeatCount: repeatCount ?? this.repeatCount,
+      playlistAddCount: playlistAddCount ?? this.playlistAddCount,
+      engagementScore: engagementScore ?? this.engagementScore,
     );
   }
 }

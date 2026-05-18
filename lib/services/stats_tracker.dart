@@ -13,6 +13,7 @@ class StatsTracker {
   double _currentDuration = 0;
   double _listenedSeconds = 0;
   bool _isFavorite = false;
+  int? _lastFinishedSongId;
   StreamSubscription? _positionSub;
   StreamSubscription? _durationSub;
   FavoritesRepository? _favRepo;
@@ -45,7 +46,20 @@ class StatsTracker {
 
   Future<void> handleSongChanged(int songId) async {
     if (_currentSongId != null && _currentSongId != songId) {
-      await _flushCurrent();
+      final completionRate = _currentDuration > 0
+          ? _listenedSeconds / _currentDuration
+          : 0.0;
+
+      if (completionRate >= 0.90) {
+        _lastFinishedSongId = _currentSongId;
+      }
+
+      final isRepeat = songId == _lastFinishedSongId;
+      await _flushCurrent(isRepeat: isRepeat);
+
+      if (isRepeat) {
+        _lastFinishedSongId = null;
+      }
     }
 
     final song = audioHandler.currentSong;
@@ -60,7 +74,7 @@ class StatsTracker {
     _currentDuration = song?.duration.toDouble() ?? 0;
   }
 
-  Future<void> _flushCurrent() async {
+  Future<void> _flushCurrent({bool isRepeat = false}) async {
     if (_currentSongId == null) return;
 
     await statsRepository.recordPlay(
@@ -70,6 +84,7 @@ class StatsTracker {
       durationSeconds: _currentDuration,
       listenedSeconds: _listenedSeconds,
       isFavorite: _isFavorite,
+      isRepeat: isRepeat,
     );
   }
 
