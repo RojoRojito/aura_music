@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
@@ -101,7 +100,7 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
           ),
           Switch(
             value: eqController.isEnabled,
-            onChanged: (_) { unawaited(eqController.toggleEnabled()); },
+            onChanged: (_) { eqController.toggleEnabled(); },
             activeColor: AuraColors.primary,
           ),
         ],
@@ -156,7 +155,7 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
                   color: isSelected ? AuraColors.primary : AuraColors.textOf(context),
                   fontSize: 12,
                 ),
-                onSelected: (_) { unawaited(eqController.applyPreset(name)); },
+                onSelected: (_) { eqController.applyPreset(name); },
               ),
             ),
           }).toList(),
@@ -176,7 +175,7 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
       context,
       label: 'ECUALIZADOR',
       toggleValue: eqEnabled,
-      onToggle: (_) { unawaited(eqController.toggleEnabled()); },
+      onToggle: (_) { eqController.toggleEnabled(); },
       child: Column(
         children: [
           Row(
@@ -198,7 +197,7 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
                   ),
-                  onSelected: (_) { unawaited(eqController.setVisualBandCount(count)); },
+                  onSelected: (_) { eqController.setVisualBandCount(count); },
                 ),
               ),
             }).toList(),
@@ -260,7 +259,7 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
                       value: gain,
                       activeColor: AuraColors.primary,
                       inactiveColor: Colors.white12,
-                      onChanged: (v) { unawaited(eqController.setBandGain(i, v)); },
+                      onChanged: (v) { eqController.setBandGain(i, v); },
                     ),
                   ),
                 ),
@@ -312,7 +311,7 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
                   activeColor: AuraColors.accent,
                   inactiveColor: Colors.white12,
                   onChanged: bassEnabled
-                      ? (v) { unawaited(eqController.setBassBoost(v)); }
+                      ? (v) { eqController.setBassBoost(v); }
                       : null,
                 ),
               ),
@@ -349,7 +348,7 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
                     fontSize: 11,
                   ),
                   onSelected: bassEnabled
-                      ? (_) { unawaited(eqController.setBassFrequency(hz)); }
+                      ? (_) { eqController.setBassFrequency(hz); }
                       : null,
                 ),
               ),
@@ -370,7 +369,7 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
       label: 'VOLUMEN',
       icon: Icons.volume_up,
       toggleValue: loudEnabled,
-      onToggle: (val) { unawaited(eqController.setLoudnessEnabled(val)); },
+      onToggle: (val) { eqController.setLoudnessEnabled(val); },
       child: Column(
         children: [
           Row(
@@ -386,7 +385,7 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
                   activeColor: AuraColors.secondary,
                   inactiveColor: Colors.white12,
                   onChanged: loudEnabled
-                      ? (v) { unawaited(eqController.setLoudness(v)); }
+                      ? (v) { eqController.setLoudness(v); }
                       : null,
                 ),
               ),
@@ -425,7 +424,7 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
       context,
       label: 'LIMITADOR',
       toggleValue: limiterOn,
-      onToggle: (val) { unawaited(eqController.setLimiterEnabled(val)); },
+      onToggle: (val) { eqController.setLimiterEnabled(val); },
       child: Column(
         children: [
           AnimatedSize(
@@ -438,28 +437,28 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
                         'Umbral',
                         config?.limiterThreshold ?? -3.0,
                         -12.0, 0.0, 24,
-                        (v) { unawaited(eqController.setLimiterParams(threshold: v)); },
+                        (v) { eqController.setLimiterParams(threshold: v); },
                         'dB',
                       ),
                       _buildLimiterSlider(
                         'Ratio',
                         config?.limiterRatio ?? 4.0,
                         1.0, 20.0, 19,
-                        (v) { unawaited(eqController.setLimiterParams(ratio: v)); },
+                        (v) { eqController.setLimiterParams(ratio: v); },
                         'x',
                       ),
                       _buildLimiterSlider(
                         'Ataque',
                         config?.limiterAttack ?? 10.0,
                         1.0, 200.0, 199,
-                        (v) { unawaited(eqController.setLimiterParams(attack: v)); },
+                        (v) { eqController.setLimiterParams(attack: v); },
                         'ms',
                       ),
                       _buildLimiterSlider(
                         'Salida',
                         config?.limiterPostGain ?? 0.0,
                         0.0, 6.0, 12,
-                        (v) { unawaited(eqController.setLimiterParams(postGain: v)); },
+                        (v) { eqController.setLimiterParams(postGain: v); },
                         'dB',
                       ),
                     ],
@@ -570,7 +569,7 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
                   activeColor: AuraColors.secondary,
                   inactiveColor: Colors.white12,
                   onChanged: virtEnabled
-                      ? (v) { unawaited(eqController.setVirtualizer(v)); }
+                      ? (v) { eqController.setVirtualizer(v); }
                       : null,
                 ),
               ),
