@@ -72,10 +72,10 @@ jobs:
           sed -i "s/ext\.kotlin_version = '[^']*'/ext.kotlin_version = '1.8.22'/g" android/build.gradle 2>/dev/null || true
           sed -i 's/ext\.kotlin_version = "[^"]*"/ext.kotlin_version = "1.8.22"/g' android/build.gradle 2>/dev/null || true
 
-          # Bump compileSdk to 34
-          sed -i 's/compileSdk = [0-9]*/compileSdk = 34/g' android/app/build.gradle
-          sed -i 's/compileSdk [0-9]*/compileSdk 34/g' android/app/build.gradle
-          sed -i 's/compileSdkVersion [0-9]*/compileSdkVersion 34/g' android/app/build.gradle 2>/dev/null || true
+          # Bump compileSdk to 34 (replace whole expression, not just digits)
+          sed -i 's/compileSdk = flutter\.compileSdkVersion/compileSdk = 34/g' android/app/build.gradle
+          sed -i 's/compileSdk flutter\.compileSdkVersion/compileSdk 34/g' android/app/build.gradle
+          sed -i 's/compileSdkVersion flutter\.compileSdkVersion/compileSdkVersion 34/g' android/app/build.gradle
 
           # 10. Clear Gradle wrapper cache and force 8.0
           rm -rf ~/.gradle/wrapper/dists
