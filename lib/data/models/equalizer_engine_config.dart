@@ -1,3 +1,5 @@
+import 'eq_config.dart';
+
 /// EqualizerEngineConfig — Shared DSP configuration model.
 ///
 /// This model represents the complete state of the DSP engine
@@ -216,9 +218,3 @@ class EqualizerEngineConfig {
         'mode: $engineMode)';
   }
 }
-
-// Import needed for EqConfig conversion
-// This is done via a separate import in files that use this model
-// to avoid circular dependencies.
-// ignore: unused_import
-import '../data/models/eq_config.dart';

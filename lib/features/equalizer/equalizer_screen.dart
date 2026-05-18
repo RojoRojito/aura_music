@@ -5,6 +5,7 @@ import '../../data/models/eq_config.dart';
 import '../../data/models/song.dart';
 import '../../widgets/aura_animations.dart';
 import '../../services/equalizer_service.dart';
+import '../../features/equalizer/equalizer_controller.dart';
 
 class EqualizerScreen extends StatefulWidget {
   final Song? song;
@@ -19,7 +20,6 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
     31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 12000, 16000, 20000
   ];
 
-  // Indices into the 12-band UI array for each visual band count
   static const Map<int, List<int>> _bandSelections = {
     5:  [0, 2, 5, 8, 11],
     7:  [0, 2, 4, 6, 8, 10, 11],
@@ -28,9 +28,11 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Use the new controller for all operations
+    final eqController = context.watch<EqualizerController>();
     final eqService = context.watch<EqualizerService>();
 
-    if (!eqService.isAvailable) {
+    if (!eqController.isAvailable) {
       return Scaffold(
         backgroundColor: AuraColors.backgroundOf(context),
         appBar: AppBar(
@@ -56,7 +58,7 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
       );
     }
 
-    final config = eqService.currentConfig;
+    final config = eqController.currentConfig;
 
     return Scaffold(
       backgroundColor: AuraColors.backgroundOf(context),
@@ -76,9 +78,29 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
           ),
         ),
         actions: [
+          // Show engine mode indicator
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: Tooltip(
+              message: 'DSP: ${eqController.engineMode}',
+              child: Icon(
+                eqController.engineMode == 'dynamics_processing'
+                    ? Icons.auto_awesome
+                    : eqController.engineMode == 'legacy'
+                        ? Icons.build
+                        : Icons.warning,
+                color: eqController.engineMode == 'dynamics_processing'
+                    ? Colors.green
+                    : eqController.engineMode == 'legacy'
+                        ? Colors.orange
+                        : Colors.red,
+                size: 20,
+              ),
+            ),
+          ),
           Switch(
-            value: eqService.isEnabled,
-            onChanged: (_) => eqService.toggleEnabled(),
+            value: eqController.isEnabled,
+            onChanged: (_) => eqController.toggleEnabled(),
             activeColor: AuraColors.primary,
           ),
         ],
@@ -88,19 +110,19 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildPresetsSection(eqService, config),
+            _buildPresetsSection(eqController, config),
             const SizedBox(height: 20),
-            _buildEqSection(eqService, config),
+            _buildEqSection(eqController, config),
             const SizedBox(height: 20),
-            _buildBassSection(eqService, config),
+            _buildBassSection(eqController, config),
             const SizedBox(height: 20),
-            _buildVolumeSection(eqService, config),
+            _buildVolumeSection(eqController, config),
             const SizedBox(height: 20),
-            _buildLimiterSection(eqService, config),
+            _buildLimiterSection(eqController, config),
             const SizedBox(height: 20),
-            _buildVirtualizerSection(eqService, config),
+            _buildVirtualizerSection(eqController, config),
             const SizedBox(height: 32),
-            _buildResetButton(eqService),
+            _buildResetButton(eqController),
             const SizedBox(height: 16),
           ],
         ),
@@ -110,7 +132,7 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
 
   // ─── PRESETS ───────────────────────────────────────────
 
-  Widget _buildPresetsSection(EqualizerService eqService, EqConfig? config) {
+  Widget _buildPresetsSection(EqualizerController eqController, EqConfig? config) {
     return _sectionContainer(
       context,
       label: 'PRESETS',
@@ -133,9 +155,9 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
                   color: isSelected ? AuraColors.primary : AuraColors.textOf(context),
                   fontSize: 12,
                 ),
-                onSelected: (_) => eqService.applyPreset(name),
+                onSelected: (_) => eqController.applyPreset(name),
               ),
-            );
+            ),
           }).toList(),
         ),
       ),
@@ -144,7 +166,7 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
 
   // ─── ECUALIZADOR (EQ BANDS) ───────────────────────────
 
-  Widget _buildEqSection(EqualizerService eqService, EqConfig? config) {
+  Widget _buildEqSection(EqualizerController eqController, EqConfig? config) {
     final eqEnabled = config?.enabled ?? false;
     final visualCount = config?.visualBandCount ?? 5;
     final selectedIndices = _bandSelections[visualCount] ?? _bandSelections[5]!;
@@ -153,10 +175,9 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
       context,
       label: 'ECUALIZADOR',
       toggleValue: eqEnabled,
-      onToggle: (_) => eqService.toggleEnabled(),
+      onToggle: (_) => eqController.toggleEnabled(),
       child: Column(
         children: [
-          // Band count selector
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [5, 7, 10].map((count) {
@@ -176,13 +197,12 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
                   ),
-                  onSelected: (_) => _updateVisualBandCount(eqService, count),
+                  onSelected: (_) => eqController.setVisualBandCount(count),
                 ),
-              );
+              ),
             }).toList(),
           ),
           const SizedBox(height: 12),
-          // EQ sliders
           Container(
             height: 260,
             decoration: BoxDecoration(
@@ -190,12 +210,12 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
               borderRadius: BorderRadius.circular(16),
             ),
             child: eqEnabled
-                ? _buildBandsGrid(eqService, config, selectedIndices)
+                ? _buildBandsGrid(eqController, config, selectedIndices)
                 : Opacity(
                     opacity: 0.4,
                     child: IgnorePointer(
                       ignoring: true,
-                      child: _buildBandsGrid(eqService, config, selectedIndices),
+                      child: _buildBandsGrid(eqController, config, selectedIndices),
                     ),
                   ),
           ),
@@ -204,7 +224,7 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
     );
   }
 
-  Widget _buildBandsGrid(EqualizerService eqService, EqConfig? config, List<int> indices) {
+  Widget _buildBandsGrid(EqualizerController eqController, EqConfig? config, List<int> indices) {
     final bands = config?.bandGains ?? List.filled(12, 0.0);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -223,7 +243,7 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
                 Text(
                   gainText,
                   style: TextStyle(
-                    color: eqService.isEnabled
+                    color: eqController.isEnabled
                         ? AuraColors.primary
                         : AuraColors.textMutedOf(context),
                     fontSize: 9,
@@ -239,7 +259,7 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
                       value: gain,
                       activeColor: AuraColors.primary,
                       inactiveColor: Colors.white12,
-                      onChanged: (v) => eqService.setBandGain(i, v),
+                      onChanged: (v) => eqController.setBandGain(i, v),
                     ),
                   ),
                 ),
@@ -253,14 +273,14 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
               ],
             ),
           ),
-        );
+        ),
       }).toList(),
     );
   }
 
   // ─── GRAVES (Bass Booster) ─────────────────────────────
 
-  Widget _buildBassSection(EqualizerService eqService, EqConfig? config) {
+  Widget _buildBassSection(EqualizerController eqController, EqConfig? config) {
     final bassEnabled = (config?.bassBoost ?? 0) > 0;
     final bassHz = config?.bassFrequencyHz ?? 80;
 
@@ -271,9 +291,9 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
       toggleValue: bassEnabled,
       onToggle: (val) {
         if (!val) {
-          eqService.setBassBoost(0);
+          eqController.setBassBoost(0);
         } else {
-          eqService.setBassBoost(5);
+          eqController.setBassBoost(5);
         }
       },
       child: Column(
@@ -291,7 +311,7 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
                   activeColor: AuraColors.accent,
                   inactiveColor: Colors.white12,
                   onChanged: bassEnabled
-                      ? (v) => eqService.setBassBoost(v)
+                      ? (v) => eqController.setBassBoost(v)
                       : null,
                 ),
               ),
@@ -328,10 +348,10 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
                     fontSize: 11,
                   ),
                   onSelected: bassEnabled
-                      ? (_) => eqService.setBassFrequency(hz)
+                      ? (_) => eqController.setBassFrequency(hz)
                       : null,
                 ),
-              );
+              ),
             }).toList(),
           ),
         ],
@@ -341,7 +361,7 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
 
   // ─── VOLUMEN (Loudness) ────────────────────────────────
 
-  Widget _buildVolumeSection(EqualizerService eqService, EqConfig? config) {
+  Widget _buildVolumeSection(EqualizerController eqController, EqConfig? config) {
     final loudEnabled = config?.loudnessEnabled ?? false;
 
     return _sectionContainer(
@@ -349,7 +369,7 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
       label: 'VOLUMEN',
       icon: Icons.volume_up,
       toggleValue: loudEnabled,
-      onToggle: (val) => _updateLoudnessEnabled(eqService, val),
+      onToggle: (val) => eqController.setLoudnessEnabled(val),
       child: Column(
         children: [
           Row(
@@ -365,7 +385,7 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
                   activeColor: AuraColors.secondary,
                   inactiveColor: Colors.white12,
                   onChanged: loudEnabled
-                      ? (v) => _updateLoudness(eqService, v)
+                      ? (v) => eqController.setLoudness(v)
                       : null,
                 ),
               ),
@@ -397,14 +417,14 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
 
   // ─── LIMITADOR ─────────────────────────────────────────
 
-  Widget _buildLimiterSection(EqualizerService eqService, EqConfig? config) {
+  Widget _buildLimiterSection(EqualizerController eqController, EqConfig? config) {
     final limiterOn = config?.limiterEnabled ?? false;
 
     return _sectionContainer(
       context,
       label: 'LIMITADOR',
       toggleValue: limiterOn,
-      onToggle: (val) => _updateLimiterEnabled(eqService, val),
+      onToggle: (val) => eqController.setLimiterEnabled(val),
       child: Column(
         children: [
           AnimatedSize(
@@ -417,28 +437,28 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
                         'Umbral',
                         config?.limiterThreshold ?? -3.0,
                         -12.0, 0.0, 24,
-                        (v) => _updateLimiterParam(eqService, threshold: v),
+                        (v) => eqController.setLimiterParams(threshold: v),
                         'dB',
                       ),
                       _buildLimiterSlider(
                         'Ratio',
                         config?.limiterRatio ?? 4.0,
                         1.0, 20.0, 19,
-                        (v) => _updateLimiterParam(eqService, ratio: v),
+                        (v) => eqController.setLimiterParams(ratio: v),
                         'x',
                       ),
                       _buildLimiterSlider(
                         'Ataque',
                         config?.limiterAttack ?? 10.0,
                         1.0, 200.0, 199,
-                        (v) => _updateLimiterParam(eqService, attack: v),
+                        (v) => eqController.setLimiterParams(attack: v),
                         'ms',
                       ),
                       _buildLimiterSlider(
                         'Salida',
                         config?.limiterPostGain ?? 0.0,
                         0.0, 6.0, 12,
-                        (v) => _updateLimiterParam(eqService, postGain: v),
+                        (v) => eqController.setLimiterParams(postGain: v),
                         'dB',
                       ),
                     ],
@@ -519,7 +539,7 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
 
   // ─── VIRTUALIZADOR 3D ─────────────────────────────────
 
-  Widget _buildVirtualizerSection(EqualizerService eqService, EqConfig? config) {
+  Widget _buildVirtualizerSection(EqualizerController eqController, EqConfig? config) {
     final virtEnabled = (config?.virtualizer ?? 0) > 0;
 
     return _sectionContainer(
@@ -529,9 +549,9 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
       toggleValue: virtEnabled,
       onToggle: (val) {
         if (!val) {
-          eqService.setVirtualizer(0);
+          eqController.setVirtualizer(0);
         } else {
-          eqService.setVirtualizer(0.5);
+          eqController.setVirtualizer(0.5);
         }
       },
       child: Column(
@@ -549,7 +569,7 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
                   activeColor: AuraColors.secondary,
                   inactiveColor: Colors.white12,
                   onChanged: virtEnabled
-                      ? (v) => eqService.setVirtualizer(v)
+                      ? (v) => eqController.setVirtualizer(v)
                       : null,
                 ),
               ),
@@ -581,10 +601,10 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
 
   // ─── RESET BUTTON ──────────────────────────────────────
 
-  Widget _buildResetButton(EqualizerService eqService) {
+  Widget _buildResetButton(EqualizerController eqController) {
     return Center(
       child: TextButton(
-        onPressed: () => _showResetDialog(context, eqService),
+        onPressed: () => _showResetDialog(context, eqController),
         style: TextButton.styleFrom(foregroundColor: AuraColors.errorOf(context)),
         child: const Text('Restablecer todo'),
       ),
@@ -646,69 +666,7 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
     );
   }
 
-  // ─── SERVICE WRAPPERS ─────────────────────────────────
-
-  void _updateVisualBandCount(EqualizerService eqService, int count) {
-    if (eqService.currentConfig == null) return;
-    // Update config directly through a new method or save
-    final newConfig = eqService.currentConfig!.copyWith(visualBandCount: count);
-    // We need to persist this - use the service
-    _applyConfigChange(eqService, newConfig);
-  }
-
-  void _updateLoudnessEnabled(EqualizerService eqService, bool enabled) {
-    if (eqService.currentConfig == null) return;
-    final newConfig = eqService.currentConfig!.copyWith(loudnessEnabled: enabled);
-    _applyConfigChange(eqService, newConfig);
-    eqService.setLoudnessEnabled(enabled);
-  }
-
-  void _updateLoudness(EqualizerService eqService, double db) {
-    if (eqService.currentConfig == null) return;
-    final newConfig = eqService.currentConfig!.copyWith(loudness: db);
-    _applyConfigChange(eqService, newConfig);
-    eqService.setLoudness(db);
-  }
-
-  void _updateLimiterEnabled(EqualizerService eqService, bool enabled) {
-    if (eqService.currentConfig == null) return;
-    final newConfig = eqService.currentConfig!.copyWith(limiterEnabled: enabled);
-    _applyConfigChange(eqService, newConfig);
-    eqService.setLimiterEnabled(enabled);
-  }
-
-  void _updateLimiterParam(
-    EqualizerService eqService, {
-    double? threshold,
-    double? ratio,
-    double? attack,
-    double? postGain,
-  }) {
-    final config = eqService.currentConfig;
-    if (config == null) return;
-    final newConfig = config.copyWith(
-      limiterThreshold: threshold,
-      limiterRatio: ratio,
-      limiterAttack: attack,
-      limiterPostGain: postGain,
-    );
-    _applyConfigChange(eqService, newConfig);
-    eqService.setLimiterParams(
-      threshold: newConfig.limiterThreshold,
-      ratio: newConfig.limiterRatio,
-      attack: newConfig.limiterAttack,
-      release: newConfig.limiterRelease,
-      postGain: newConfig.limiterPostGain,
-    );
-  }
-
-  void _applyConfigChange(EqualizerService eqService, EqConfig newConfig) {
-    // Access private _currentConfig indirectly via public method
-    // We'll use a helper on the service
-    eqService.applyConfigDirect(newConfig);
-  }
-
-  void _showResetDialog(BuildContext context, EqualizerService eqService) {
+  void _showResetDialog(BuildContext context, EqualizerController eqController) {
     showAuraDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -729,7 +687,7 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
           TextButton(
             onPressed: () {
               Navigator.pop(ctx);
-              eqService.reset();
+              eqController.reset();
             },
             style: TextButton.styleFrom(foregroundColor: AuraColors.errorOf(context)),
             child: const Text('Restablecer'),

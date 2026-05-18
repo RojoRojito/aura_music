@@ -1,8 +1,8 @@
 import 'package:flutter/foundation.dart';
-import '../data/models/eq_config.dart';
-import '../data/repositories/eq_repository.dart';
-import 'native_equalizer_service.dart';
-import 'equalizer_state.dart';
+import '../../data/models/eq_config.dart';
+import '../../data/repositories/eq_repository.dart';
+import '../../services/native_equalizer_service.dart';
+import '../../services/equalizer_state.dart';
 
 /// EqualizerController — UI controller separated from DSP implementation.
 ///
@@ -148,9 +148,9 @@ class EqualizerController extends ChangeNotifier {
 
     // Find closest native band
     var bestIdx = 0;
-    var bestDiff = 999999;
+    var bestDiff = 999999.0;
     for (var i = 0; i < _state.nativeBandFrequencies.length; i++) {
-      final diff = (hz - _state.nativeBandFrequencies[i]).abs();
+      final diff = (hz - _state.nativeBandFrequencies[i]).abs().toDouble();
       if (diff < bestDiff) {
         bestDiff = diff;
         bestIdx = i;
