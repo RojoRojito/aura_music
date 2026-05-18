@@ -91,53 +91,22 @@ jobs:
           fi
           echo "Found: $OAP_BG"
           if [ -n "$OAP_BG" ]; then
-            # Write Python patch script to temp file for reliability
-            cat > /tmp/patch_oap.py << 'PYEOF'
-import re, sys
-
-path = sys.argv[1]
-with open(path, 'r') as f:
-    content = f.read()
-
-# 1. Update Kotlin version
-content = content.replace("ext.kotlin_version = '1.6.10'", "ext.kotlin_version = '1.8.22'")
-
-# 2. Update AGP version
-content = content.replace(
-    "classpath 'com.android.tools.build:gradle:4.1.3'",
-    "classpath 'com.android.tools.build:gradle:8.1.0'"
-)
-
-# 3. Replace entire android block with fixed version
-old_android = re.search(r'android \{[^}]+\}', content, re.DOTALL)
-if old_android:
-    new_block = """android {
-    namespace "com.lucasjosino.on_audio_query"
-    compileSdk 34
-
-    sourceSets {
-        main.java.srcDirs += 'src/main/kotlin'
-    }
-    defaultConfig {
-        minSdkVersion 16
-    }
-    compileOptions {
-        sourceCompatibility JavaVersion.VERSION_17
-        targetCompatibility JavaVersion.VERSION_17
-    }
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-}"""
-    content = content[:old_android.start()] + new_block + content[old_android.end():]
-
-with open(path, 'w') as f:
-    f.write(content)
-
-print("=== Patched file ===")
-print(content)
-PYEOF
-            python3 /tmp/patch_oap.py "$OAP_BG"
+            python3 - "$OAP_BG" << 'PYEOF'
+          import re, sys
+          path = sys.argv[1]
+          with open(path, 'r') as f:
+              content = f.read()
+          content = content.replace("ext.kotlin_version = '1.6.10'", "ext.kotlin_version = '1.8.22'")
+          content = content.replace("classpath 'com.android.tools.build:gradle:4.1.3'", "classpath 'com.android.tools.build:gradle:8.1.0'")
+          old_android = re.search(r'android \{[^}]+\}', content, re.DOTALL)
+          if old_android:
+              new_block = 'android {\n    namespace "com.lucasjosino.on_audio_query"\n    compileSdk 34\n\n    sourceSets {\n        main.java.srcDirs += \'src/main/kotlin\'\n    }\n    defaultConfig {\n        minSdkVersion 16\n    }\n    compileOptions {\n        sourceCompatibility JavaVersion.VERSION_17\n        targetCompatibility JavaVersion.VERSION_17\n    }\n    kotlinOptions {\n        jvmTarget = "17"\n    }\n}'
+              content = content[:old_android.start()] + new_block + content[old_android.end():]
+          with open(path, 'w') as f:
+              f.write(content)
+          print("=== Patched file ===")
+          print(content)
+          PYEOF
           else
             echo "ERROR: on_audio_query build.gradle not found!"
             find / -maxdepth 6 -name "*on_audio_query*" 2>/dev/null | head -20
