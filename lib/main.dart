@@ -98,6 +98,7 @@ Future<void> main() async {
     providers: [
       Provider<AuraAudioHandler>(create: (_) => audioHandler),
       Provider<MediaScanner>(create: (_) => MediaScanner()),
+      Provider<StatsRepository>.value(value: statsRepository),
       ChangeNotifierProvider.value(value: playerController),
       ChangeNotifierProvider(
           create: (c) => LibraryController(
@@ -114,7 +115,6 @@ Future<void> main() async {
       ChangeNotifierProvider<EqualizerService>.value(value: equalizerService),
       ChangeNotifierProvider.value(value: settingsController),
       ChangeNotifierProvider.value(value: themeService),
-      Provider<StatsRepository>.value(value: statsRepository),
       ChangeNotifierProvider<RecommendationEngine>.value(value: recommendationEngine),
       Provider<StatsTracker>.value(value: statsTracker),
     ],
