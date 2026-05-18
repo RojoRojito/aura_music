@@ -76,16 +76,13 @@ jobs:
           sed -i "s/kotlin_version = '[^']*'/kotlin_version = '1.9.22'/" android/build.gradle 2>/dev/null || true
           sed -i 's/ext.kotlin_version = "[^"]*"/ext.kotlin_version = "1.9.22"/' android/build.gradle 2>/dev/null || true
 
-          # 10. Debug: check Flutter SDK Gradle plugin Kotlin version
-          FLUTTER_SDK_PATH=$(dirname $(which flutter))/..
-          echo "=== Flutter SDK build.gradle.kts ==="
-          cat "$FLUTTER_SDK_PATH/packages/flutter_tools/gradle/build.gradle.kts" 2>/dev/null || echo "NOT FOUND"
-          echo "=== Flutter SDK settings.gradle.kts ==="
-          cat "$FLUTTER_SDK_PATH/packages/flutter_tools/gradle/settings.gradle.kts" 2>/dev/null || echo "NOT FOUND"
-          echo "=== Flutter SDK flutter.gradle.kts ==="
-          cat "$FLUTTER_SDK_PATH/packages/flutter_tools/gradle/src/main/kotlin/flutter.gradle.kts" 2>/dev/null || echo "NOT FOUND"
-          echo "=== Gradle version ==="
-          cd android && ./gradlew --version 2>&1 | head -10 && cd ..
+          # 10. Force Gradle wrapper to 8.0 (embeds Kotlin 1.8.0)
+          printf 'distributionBase=GRADLE_USER_HOME\ndistributionPath=wrapper/dists\nzipStoreBase=GRADLE_USER_HOME\nzipStorePath=wrapper/dists\ndistributionUrl=https\\://services.gradle.org/distributions/gradle-8.0-all.zip\n' > android/gradle/wrapper/gradle-wrapper.properties
+          echo "=== gradle-wrapper.properties ==="
+          cat android/gradle/wrapper/gradle-wrapper.properties
+
+          # 11. Fix JVM target mismatch for Gradle 8.0
+          echo "kotlin.jvm.target.validation.mode=warning" >> android/gradle.properties
 
           echo "=== settings.gradle AFTER patch ==="
           cat android/settings.gradle
