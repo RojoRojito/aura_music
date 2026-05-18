@@ -33,9 +33,9 @@ jobs:
           # 1. Respaldar Manifest
           cp android/app/src/main/AndroidManifest.xml AndroidManifest.xml.bak
 
-          # 2. Respaldar archivos Kotlin nativos
+          # 2. Respaldar archivos Kotlin nativos (full directory tree)
           mkdir -p native_backup
-          cp -r android/app/src/main/kotlin/com/daviddev/aura_music/ native_backup/ 2>/dev/null || true
+          cp -r android/app/src/main/kotlin/com/daviddev/aura_music native_backup/aura_music 2>/dev/null || true
 
           # 3. Respaldar just_audio_local
           if [ -d "just_audio_local" ]; then
@@ -52,41 +52,30 @@ jobs:
           mkdir -p android/app/src/main/
           cp AndroidManifest.xml.bak android/app/src/main/AndroidManifest.xml
 
-          # 7. Restaurar TODOS los archivos Kotlin nativos (overwrite generated ones)
-          echo "=== native_backup contents ==="
-          find native_backup -type f
-          # Remove flutter-generated kotlin dir and restore ours completely
+          # 7. Restaurar TODOS los archivos Kotlin nativos
           rm -rf android/app/src/main/kotlin/com/daviddev/aura_music
+          mkdir -p android/app/src/main/kotlin/com/daviddev
           cp -rf native_backup/aura_music android/app/src/main/kotlin/com/daviddev/aura_music
-          echo "=== Restored files ==="
+          echo "=== Restored Kotlin files ==="
           find android/app/src/main/kotlin/com/daviddev/aura_music -type f
-          echo "=== MainActivity.kt (first 5 lines) ==="
-          head -5 android/app/src/main/kotlin/com/daviddev/aura_music/MainActivity.kt
 
           # 8. Restaurar just_audio_local
           if [ -d "just_audio_local.bak" ]; then
             cp -r just_audio_local.bak just_audio_local
           fi
 
-          # 9. Parchear Kotlin version a 1.8.22 (compatible con deps compiladas en 1.8.0)
-          # Force kotlin version via buildscript block (works regardless of AGP format)
-          cat > /tmp/kotlin_patch.gradle << 'PATCH'
-buildscript {
-    ext.kotlin_version = '1.8.22'
-}
-PATCH
-          cat /tmp/kotlin_patch.gradle android/build.gradle > /tmp/build_new.gradle
-          mv /tmp/build_new.gradle android/build.gradle
+          # 9. Force Kotlin 1.8.22 via version catalog override in settings.gradle
+          #    This MUST come before any other plugins block modifications
+          sed -i 's/id "org\.jetbrains\.kotlin\.android" version "[^"]*"/id "org.jetbrains.kotlin.android" version "1.8.22"/g' android/settings.gradle
+          
+          # Also ensure build.gradle has it (fallback for older AGP)
+          sed -i "s/ext\.kotlin_version = '[^']*'/ext.kotlin_version = '1.8.22'/g" android/build.gradle 2>/dev/null || true
+          sed -i 's/ext\.kotlin_version = "[^"]*"/ext.kotlin_version = "1.8.22"/g' android/build.gradle 2>/dev/null || true
 
-          # Also patch settings.gradle for new AGP format
-          sed -i 's/id "org\.jetbrains\.kotlin\.android" version "[^"]*"/id "org.jetbrains.kotlin.android" version "1.8.22"/' android/settings.gradle
-
-          echo "=== settings.gradle (kotlin line) ==="
-          grep -n "kotlin" android/settings.gradle
-          echo "=== build.gradle (kotlin line) ==="
-          grep -n "kotlin" android/build.gradle
-          echo "=== app/build.gradle (compileSdk) ==="
-          grep -n "compileSdk" android/app/build.gradle
+          # Bump compileSdk to 34
+          sed -i 's/compileSdk = [0-9]*/compileSdk = 34/g' android/app/build.gradle
+          sed -i 's/compileSdk [0-9]*/compileSdk 34/g' android/app/build.gradle
+          sed -i 's/compileSdkVersion [0-9]*/compileSdkVersion 34/g' android/app/build.gradle 2>/dev/null || true
 
           # 10. Clear Gradle wrapper cache and force 8.0
           rm -rf ~/.gradle/wrapper/dists
@@ -97,24 +86,20 @@ PATCH
             echo "zipStorePath=wrapper/dists"
             echo "distributionUrl=https\://services.gradle.org/distributions/gradle-8.0-all.zip"
           } > android/gradle/wrapper/gradle-wrapper.properties
-          echo "=== gradle-wrapper.properties ==="
-          cat android/gradle/wrapper/gradle-wrapper.properties
 
           # 11. Fix JVM target mismatch for Gradle 8.0
           echo "kotlin.jvm.target.validation.mode=warning" >> android/gradle.properties
 
-          echo "=== gradle.properties ==="
-          cat android/gradle.properties
-
-          # 13. Verify: list ALL MainActivity.kt files
-          echo "=== ALL MainActivity.kt files ==="
-          find . -name "MainActivity.kt" -type f
-          echo "=== Content of our MainActivity.kt (first 5 lines) ==="
-          head -5 android/app/src/main/kotlin/com/daviddev/aura_music/MainActivity.kt
-
-          # 13. Delete any flutter-generated MainActivity that could shadow ours
-          #     flutter create generates in com/example/ even with --org
+          # 12. Delete any flutter-generated MainActivity that could shadow ours
           rm -rf android/app/src/main/kotlin/com/example/
+
+          # 13. Verify patches
+          echo "=== Kotlin version in settings.gradle ==="
+          grep "kotlin" android/settings.gradle || true
+          echo "=== Kotlin version in build.gradle ==="
+          grep "kotlin" android/build.gradle || true
+          echo "=== compileSdk ==="
+          grep "compileSdk" android/app/build.gradle || true
 
       - name: Accept Android Licenses
         run: yes | flutter doctor --android-licenses
