@@ -17,15 +17,16 @@ class ForYouScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final engine = context.watch<RecommendationEngine>();
     final picks = engine.topPicks;
+    final txtMuted = AuraColors.textMutedOf(context);
 
     return picks.isEmpty
         ? Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(
+                Icon(
                   Icons.music_note,
-                  color: AuraColors.textMuted,
+                  color: txtMuted,
                   size: 64,
                 ),
                 const SizedBox(height: AuraSpacing.lg),
@@ -33,7 +34,7 @@ class ForYouScreen extends StatelessWidget {
                   'Escucha más canciones para recibir recomendaciones',
                   textAlign: TextAlign.center,
                   style: AuraTypography.body.copyWith(
-                    color: AuraColors.textMuted,
+                    color: txtMuted,
                   ),
                 ),
               ],
@@ -84,13 +85,14 @@ class _SongListState extends State<_SongList> {
       return const AuraLoadingIndicator();
     }
     if (_songs.isEmpty) {
+      final txtMuted = AuraColors.textMutedOf(context);
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
+            Icon(
               Icons.music_note,
-              color: AuraColors.textMuted,
+              color: txtMuted,
               size: 64,
             ),
             const SizedBox(height: AuraSpacing.lg),
@@ -98,7 +100,7 @@ class _SongListState extends State<_SongList> {
               'Escucha más canciones para recibir recomendaciones',
               textAlign: TextAlign.center,
               style: AuraTypography.body.copyWith(
-                color: AuraColors.textMuted,
+                color: txtMuted,
               ),
             ),
           ],

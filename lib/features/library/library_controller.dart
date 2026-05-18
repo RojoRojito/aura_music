@@ -45,31 +45,43 @@ class LibraryController extends ChangeNotifier {
   List<SongStats> get mostPlayed => _mostPlayed;
   bool get hasSections => _statsLoaded && _recentlyPlayed.isNotEmpty;
 
+  String? _scanErrorMessage;
+
   String? get errorMessage {
     if (_status == LibraryStatus.noPermission) return 'Permiso de audio denegado';
-    if (_status == LibraryStatus.error) return 'Error al cargar canciones';
+    if (_status == LibraryStatus.error) return _scanErrorMessage ?? 'Error al cargar canciones';
     return null;
   }
 
   Future<void> scanLibrary() async {
     _status = LibraryStatus.loading;
+    _scanErrorMessage = null;
     notifyListeners();
-    final result = await _scanner.scanSongs();
+    try {
+      final result = await _scanner.scanSongs();
 
-    switch (result.status) {
-      case ScanStatus.noPermission:
-        _status = LibraryStatus.noPermission;
-        break;
-      case ScanStatus.error:
-        _status = LibraryStatus.error;
-        break;
-      case ScanStatus.success:
-        _all = result.songs;
-        _applySortAndFilter();
-        _status = _all.isEmpty ? LibraryStatus.empty : LibraryStatus.loaded;
-        break;
-      default:
-        break;
+      switch (result.status) {
+        case ScanStatus.noPermission:
+          _status = LibraryStatus.noPermission;
+          break;
+        case ScanStatus.error:
+          _status = LibraryStatus.error;
+          _scanErrorMessage = result.errorMessage;
+          break;
+        case ScanStatus.success:
+          _all = result.songs;
+          _applySortAndFilter();
+          _status = _all.isEmpty ? LibraryStatus.empty : LibraryStatus.loaded;
+          break;
+        default:
+          _status = LibraryStatus.error;
+          _scanErrorMessage = 'Estado inesperado: ${result.status}';
+          break;
+      }
+    } catch (e) {
+      _status = LibraryStatus.error;
+      _scanErrorMessage = e.toString();
+      debugPrint('scanLibrary error: $e');
     }
     notifyListeners();
   }

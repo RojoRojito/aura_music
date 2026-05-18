@@ -144,6 +144,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
           message: 'Escanea tu biblioteca para encontrar música',
         );
       case LibraryStatus.initial:
+        return const AuraLoadingState(state: AuraState.loading);
       case LibraryStatus.loaded:
         return RefreshIndicator(
           onRefresh: () async {

@@ -44,25 +44,32 @@ class MediaScanner {
     }
   }
 
-  Future<List<AlbumModel>> scanAlbums() =>
-      _q.queryAlbums(sortType: AlbumSortType.ALBUM,
-          orderType: OrderType.ASC_OR_SMALLER);
+  Future<List<AlbumModel>> scanAlbums() async {
+    await requestPermission();
+    return _q.queryAlbums(sortType: AlbumSortType.ALBUM,
+        orderType: OrderType.ASC_OR_SMALLER);
+  }
 
-  Future<List<ArtistModel>> scanArtists() =>
-      _q.queryArtists(sortType: ArtistSortType.ARTIST,
-          orderType: OrderType.ASC_OR_SMALLER);
+  Future<List<ArtistModel>> scanArtists() async {
+    await requestPermission();
+    return _q.queryArtists(sortType: ArtistSortType.ARTIST,
+        orderType: OrderType.ASC_OR_SMALLER);
+  }
 
   Future<List<Song>> songsByArtist(int artistId) async {
+    await requestPermission();
     final r = await _q.queryAudiosFrom(AudiosFromType.ARTIST_ID, artistId);
     return r.map(_map).toList();
   }
 
   Future<List<AlbumModel>> albumsByArtist(int artistId) async {
+    await requestPermission();
     final r = await _q.queryAlbums();
     return r.where((a) => a.artistId == artistId).toList();
   }
 
   Future<List<Song>> songsByAlbum(int albumId) async {
+    await requestPermission();
     final r = await _q.queryAudiosFrom(AudiosFromType.ALBUM_ID, albumId);
     return r.map(_map).toList();
   }
@@ -71,6 +78,7 @@ class MediaScanner {
     if (_songCache != null) {
       return _songCache![songId];
     }
+    await requestPermission();
     final songs = await _q.querySongs(
       sortType: SongSortType.TITLE,
       orderType: OrderType.ASC_OR_SMALLER,

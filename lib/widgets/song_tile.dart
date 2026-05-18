@@ -28,7 +28,10 @@ class SongTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final playing = context.watch<PlayerController>().currentSong?.id == song.id;
     final isFav = context.watch<FavoritesRepository>().isFavorite(song.id);
-    
+    final txt = AuraColors.textOf(context);
+    final txtMuted = AuraColors.textMutedOf(context);
+    final surfaceHigh = AuraColors.surfaceHighOf(context);
+
     final tile = ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       leading: showAlbumArt
@@ -38,18 +41,18 @@ class SongTile extends StatelessWidget {
               child: QueryArtworkWidget(
                 id: song.albumId ?? 0, type: ArtworkType.ALBUM,
                 nullArtworkWidget: Container(
-                  color: AuraColors.surfaceHigh,
+                  color: surfaceHigh,
                   child: Icon(Icons.music_note,
-                      color: playing ? AuraColors.primary : AuraColors.textMuted)))))
+                      color: playing ? AuraColors.primary : txtMuted)))))
         : null,
       title: Text(song.title, maxLines: 1, overflow: TextOverflow.ellipsis,
           style: TextStyle(
-              color: playing ? AuraColors.primary : AuraColors.text,
+              color: playing ? AuraColors.primary : txt,
               fontWeight: playing ? FontWeight.w600 : FontWeight.normal,
               fontSize: 14)),
       subtitle: Text('${song.artist} • ${song.durationFormatted}',
           maxLines: 1, overflow: TextOverflow.ellipsis,
-          style: const TextStyle(color: AuraColors.textMuted, fontSize: 12)),
+          style: TextStyle(color: txtMuted, fontSize: 12)),
       trailing: trailing ??
         (playing ? const Icon(Icons.equalizer, color: AuraColors.primary, size: 20) : null),
       onTap: onTap,
