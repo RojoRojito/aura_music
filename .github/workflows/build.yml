@@ -79,10 +79,10 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
-      - name: Patch on_audio_query namespace for AGP 8+
+      - name: Patch on_audio_query for AGP 8+ compatibility
         run: |
-          # on_audio_query_android lacks namespace in build.gradle (required by AGP 8+)
-          # Search broadly — package may be in PUB_CACHE, Flutter SDK, or system cache
+          # on_audio_query_android uses ancient Kotlin 1.6.10 and AGP 4.1.3
+          # Must patch: namespace, kotlin version, AGP version, JVM targets
           OAP_BG=""
           for pattern in "*/on_audio_query_android/android/build.gradle" "*/on_audio_query/android/build.gradle"; do
             OAP_BG=$(find ${PUB_CACHE:-$HOME/.pub-cache} $HOME/.pub-cache /opt/hostedtoolcache -path "$pattern" 2>/dev/null | head -1)
@@ -94,18 +94,29 @@ jobs:
           echo "Found: $OAP_BG"
           if [ -n "$OAP_BG" ]; then
             echo "=== Before patch ==="
-            head -20 "$OAP_BG"
-            # Add namespace after 'android {' line if not already present
+            cat "$OAP_BG"
+            # 1. Update Kotlin version
+            sed -i "s/ext.kotlin_version = '1.6.10'/ext.kotlin_version = '1.8.22'/" "$OAP_BG"
+            # 2. Update AGP version
+            sed -i "s|classpath 'com.android.tools.build:gradle:4.1.3'|classpath 'com.android.tools.build:gradle:8.1.0'|" "$OAP_BG"
+            # 3. Add namespace if missing
             if ! grep -q "namespace" "$OAP_BG"; then
               sed -i '/^android {/a\    namespace "com.lucasjosino.on_audio_query"' "$OAP_BG"
-              echo "=== After patch ==="
-              grep -n "namespace\|android {" "$OAP_BG"
-            else
-              echo "namespace already present"
             fi
+            # 4. Add JVM target compatibility after compileOptions block or at end of android {}
+            if ! grep -q "jvmTarget" "$OAP_BG"; then
+              # Add kotlinOptions with jvmTarget before the closing } of android block
+              sed -i '/^android {/,/^}/ {
+                /^}/i\
+                    kotlinOptions {\
+                        jvmTarget = "17"\
+                    }
+              }' "$OAP_BG"
+            fi
+            echo "=== After patch ==="
+            cat "$OAP_BG"
           else
             echo "ERROR: on_audio_query build.gradle not found!"
-            echo "Searching for any on_audio_query files..."
             find / -maxdepth 6 -name "*on_audio_query*" 2>/dev/null | head -20
           fi
 
