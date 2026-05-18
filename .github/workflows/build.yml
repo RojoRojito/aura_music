@@ -30,36 +30,36 @@ jobs:
 
       - name: Clean and Regenerate Android
         run: |
-          # 1. Respaldar Manifest
+          # 1. Backup Manifest
           cp android/app/src/main/AndroidManifest.xml AndroidManifest.xml.bak
 
-          # 2. Respaldar archivos Kotlin nativos (full directory tree)
+          # 2. Backup native Kotlin files (full directory tree)
           mkdir -p native_backup
           cp -r android/app/src/main/kotlin/com/daviddev/aura_music native_backup/aura_music 2>/dev/null || true
 
-          # 3. Respaldar just_audio_local
+          # 3. Backup just_audio_local
           if [ -d "just_audio_local" ]; then
             cp -r just_audio_local just_audio_local.bak
           fi
 
-          # 4. Borrar carpeta android
+          # 4. Delete android folder
           rm -rf android
 
-          # 5. Regenerar desde cero con org correcto
+          # 5. Regenerate from scratch with correct org
           flutter create . --platforms android --org com.daviddev
 
-          # 6. Restaurar Manifest
+          # 6. Restore Manifest
           mkdir -p android/app/src/main/
           cp AndroidManifest.xml.bak android/app/src/main/AndroidManifest.xml
 
-          # 7. Restaurar TODOS los archivos Kotlin nativos
+          # 7. Restore ALL native Kotlin files
           rm -rf android/app/src/main/kotlin/com/daviddev/aura_music
           mkdir -p android/app/src/main/kotlin/com/daviddev
           cp -rf native_backup/aura_music android/app/src/main/kotlin/com/daviddev/aura_music
           echo "=== Restored Kotlin files ==="
           find android/app/src/main/kotlin/com/daviddev/aura_music -type f
 
-          # 8. Restaurar just_audio_local
+          # 8. Restore just_audio_local
           if [ -d "just_audio_local.bak" ]; then
             cp -r just_audio_local.bak just_audio_local
           fi
@@ -93,15 +93,63 @@ jobs:
           if [ -n "$OAP_BG" ]; then
             python3 - "$OAP_BG" << 'PYEOF'
           import re, sys
+
           path = sys.argv[1]
           with open(path, 'r') as f:
               content = f.read()
+
+          # Fix Kotlin and AGP versions in buildscript block
           content = content.replace("ext.kotlin_version = '1.6.10'", "ext.kotlin_version = '1.8.22'")
           content = content.replace("classpath 'com.android.tools.build:gradle:4.1.3'", "classpath 'com.android.tools.build:gradle:8.1.0'")
-          old_android = re.search(r'android \{[^}]+\}', content, re.DOTALL)
-          if old_android:
-              new_block = 'android {\n    namespace "com.lucasjosino.on_audio_query"\n    compileSdk 34\n\n    sourceSets {\n        main.java.srcDirs += \'src/main/kotlin\'\n    }\n    defaultConfig {\n        minSdkVersion 16\n    }\n    compileOptions {\n        sourceCompatibility JavaVersion.VERSION_17\n        targetCompatibility JavaVersion.VERSION_17\n    }\n    kotlinOptions {\n        jvmTarget = "17"\n    }\n}'
-              content = content[:old_android.start()] + new_block + content[old_android.end():]
+
+          # Replace the android { } block properly using brace counting
+          # The old regex r'android \{[^}]+\}' was broken: [^}]+ stops at the
+          # FIRST closing brace, so nested blocks (sourceSets, defaultConfig, etc.)
+          # only matched partially, leaving orphaned '}' in the file and
+          # causing a Gradle syntax error.
+          def find_android_block(text):
+              """Return (start, end) of the complete android { ... } block."""
+              m = re.search(r'\bandroid\s*\{', text)
+              if not m:
+                  return None, None
+              depth = 0
+              i = m.start()
+              while i < len(text):
+                  if text[i] == '{':
+                      depth += 1
+                  elif text[i] == '}':
+                      depth -= 1
+                      if depth == 0:
+                          return m.start(), i + 1
+                  i += 1
+              return None, None
+
+          start, end = find_android_block(content)
+          if start is not None:
+              new_block = (
+                  'android {\n'
+                  '    namespace "com.lucasjosino.on_audio_query"\n'
+                  '    compileSdk 34\n\n'
+                  '    sourceSets {\n'
+                  "        main.java.srcDirs += 'src/main/kotlin'\n"
+                  '    }\n'
+                  '    defaultConfig {\n'
+                  '        minSdkVersion 16\n'
+                  '    }\n'
+                  '    compileOptions {\n'
+                  '        sourceCompatibility JavaVersion.VERSION_17\n'
+                  '        targetCompatibility JavaVersion.VERSION_17\n'
+                  '    }\n'
+                  '    kotlinOptions {\n'
+                  '        jvmTarget = "17"\n'
+                  '    }\n'
+                  '}'
+              )
+              content = content[:start] + new_block + content[end:]
+              print("=== Android block patched successfully ===")
+          else:
+              print("WARNING: android block not found, skipping block replacement")
+
           with open(path, 'w') as f:
               f.write(content)
           print("=== Patched file ===")
