@@ -77,7 +77,13 @@ jobs:
           sed -i 's/ext.kotlin_version = "[^"]*"/ext.kotlin_version = "1.9.22"/' android/build.gradle 2>/dev/null || true
 
           # 10. Force Gradle wrapper to 8.0 (embeds Kotlin 1.8.0)
-          printf 'distributionBase=GRADLE_USER_HOME\ndistributionPath=wrapper/dists\nzipStoreBase=GRADLE_USER_HOME\nzipStorePath=wrapper/dists\ndistributionUrl=https\\://services.gradle.org/distributions/gradle-8.0-all.zip\n' > android/gradle/wrapper/gradle-wrapper.properties
+          {
+            echo "distributionBase=GRADLE_USER_HOME"
+            echo "distributionPath=wrapper/dists"
+            echo "zipStoreBase=GRADLE_USER_HOME"
+            echo "zipStorePath=wrapper/dists"
+            echo "distributionUrl=https\://services.gradle.org/distributions/gradle-8.0-all.zip"
+          } > android/gradle/wrapper/gradle-wrapper.properties
           echo "=== gradle-wrapper.properties ==="
           cat android/gradle/wrapper/gradle-wrapper.properties
 
