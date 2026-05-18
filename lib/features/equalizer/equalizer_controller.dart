@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import '../../data/models/eq_config.dart';
-import '../../data/repositories/eq_repository.dart';
 import '../../services/native_equalizer_service.dart';
 import '../../services/equalizer_state.dart';
 
