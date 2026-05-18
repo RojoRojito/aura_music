@@ -1,29 +1,12 @@
 package com.daviddev.aura_music.audio
 
 import android.content.Context
-import android.media.audiofx.DynamicsProcessing
 import android.media.audiofx.Equalizer
 import android.media.audiofx.BassBoost
 import android.media.audiofx.Virtualizer
 import android.media.audiofx.LoudnessEnhancer
-import android.os.Build
 import android.util.Log
 
-/**
- * EqualizerEngine — Core DSP engine for AURA Music.
- *
- * Ownership model:
- * - PRIMARY: DynamicsProcessing (API 28+) for full EQ band processing + limiter
- * - FALLBACK: Equalizer + BassBoost + LoudnessEnhancer (legacy path)
- *
- * Lifecycle:
- * - Created once, survives activity recreation
- * - Reconnects when AudioSessionManager signals session changes
- * - Releases all effects safely on destroy or session invalidation
- *
- * Thread safety:
- * - All public methods are synchronized on the engine lock
- */
 class EqualizerEngine(private val context: Context) {
 
     companion object {
@@ -31,27 +14,20 @@ class EqualizerEngine(private val context: Context) {
         private const val PRIORITY = 1
     }
 
-    // ─── DSP Components ───────────────────────────────────────
-
-    // Primary DSP chain (DynamicsProcessing)
-    private var dynamicsProcessing: DynamicsProcessing? = null
-
-    // Fallback DSP chain (legacy effects)
+    // DSP components
     private var equalizer: Equalizer? = null
     private var bassBoost: BassBoost? = null
     private var virtualizer: Virtualizer? = null
     private var loudnessEnhancer: LoudnessEnhancer? = null
 
-    // ─── State ────────────────────────────────────────────────
-
+    // State
     private var currentSessionId: Int = -1
     private var isInitialized: Boolean = false
-    private var engineMode: String = "unavailable" // "dynamics_processing" | "legacy" | "unavailable"
+    private var engineMode: String = "unavailable"
     private var nativeBandCount: Int = 0
     private var nativeBandFrequencies: List<Int> = emptyList()
 
-    // ─── Configuration State ──────────────────────────────────
-
+    // Configuration state
     private var eqEnabled: Boolean = true
     private var bandGains: FloatArray = floatArrayOf()
     private var bassBoostStrength: Float = 0f
@@ -59,21 +35,10 @@ class EqualizerEngine(private val context: Context) {
     private var loudnessGain: Float = 0f
     private var loudnessEnabled: Boolean = false
 
-    // Limiter state
-    private var limiterEnabled: Boolean = false
-    private var limiterThreshold: Float = -3.0f
-    private var limiterRatio: Float = 4.0f
-    private var limiterAttack: Float = 10.0f
-    private var limiterRelease: Float = 100.0f
-    private var limiterPostGain: Float = 0.0f
-
-    // ─── Getters ──────────────────────────────────────────────
-
+    // Getters
     fun getEngineMode(): String = engineMode
     fun getNativeBandCount(): Int = nativeBandCount
     fun getNativeBandFrequencies(): List<Int> = nativeBandFrequencies
-
-    // ─── Public API ───────────────────────────────────────────
 
     @Synchronized
     fun initSession(sessionId: Int) {
@@ -89,20 +54,13 @@ class EqualizerEngine(private val context: Context) {
             currentSessionId = sessionId
         }
 
-        val primaryOk = tryInitDynamicsProcessing(sessionId)
-
-        if (primaryOk) {
-            engineMode = "dynamics_processing"
-            Log.i(TAG, "initSession: using DynamicsProcessing (primary)")
+        val ok = tryInitLegacyChain(sessionId)
+        if (ok) {
+            engineMode = "legacy"
+            Log.i(TAG, "initSession: using legacy chain")
         } else {
-            val fallbackOk = tryInitLegacyChain(sessionId)
-            if (fallbackOk) {
-                engineMode = "legacy"
-                Log.i(TAG, "initSession: using legacy fallback chain")
-            } else {
-                engineMode = "unavailable"
-                Log.e(TAG, "initSession: NO DSP engine available")
-            }
+            engineMode = "unavailable"
+            Log.e(TAG, "initSession: NO DSP engine available")
         }
 
         isInitialized = true
@@ -124,8 +82,6 @@ class EqualizerEngine(private val context: Context) {
     fun getSessionId(): Int = currentSessionId
     fun isReady(): Boolean = isInitialized && engineMode != "unavailable"
 
-    // ─── EQ Band Operations ───────────────────────────────────
-
     @Synchronized
     fun setBandGain(bandIndex: Int, gainDb: Double) {
         if (!isReady()) return
@@ -135,10 +91,7 @@ class EqualizerEngine(private val context: Context) {
             bandGains[bandIndex] = clampedGain
         }
 
-        when (engineMode) {
-            "dynamics_processing" -> applyBandGainDynamicsProcessing(bandIndex, clampedGain)
-            "legacy" -> applyBandGainLegacy(bandIndex, clampedGain)
-        }
+        applyBandGainLegacy(bandIndex, clampedGain)
     }
 
     @Synchronized
@@ -149,51 +102,32 @@ class EqualizerEngine(private val context: Context) {
             gains[i].toFloat().coerceIn(-12f, 12f)
         }
 
-        when (engineMode) {
-            "dynamics_processing" -> applyAllBandsDynamicsProcessing()
-            "legacy" -> applyAllBandsLegacy()
-        }
+        applyAllBandsLegacy()
     }
-
-    // ─── Bass Boost ───────────────────────────────────────────
 
     @Synchronized
     fun setBassBoost(gainDb: Double) {
         bassBoostStrength = gainDb.toFloat().coerceIn(0f, 15f)
 
-        when (engineMode) {
-            "dynamics_processing" -> applyBassBoostDynamicsProcessing()
-            "legacy" -> {
-                bassBoost?.let { bb ->
-                    if (bb.strengthSupported) {
-                        val s = ((bassBoostStrength / 15f) * 1000).toInt().coerceIn(0, 1000)
-                        bb.setStrength(s.toShort())
-                    }
-                }
+        bassBoost?.let { bb ->
+            if (bb.strengthSupported) {
+                val s = ((bassBoostStrength / 15f) * 1000).toInt().coerceIn(0, 1000)
+                bb.setStrength(s.toShort())
             }
         }
     }
-
-    // ─── Virtualizer ──────────────────────────────────────────
 
     @Synchronized
     fun setVirtualizer(strength: Double) {
         virtualizerStrength = strength.toFloat().coerceIn(0f, 1f)
 
-        when (engineMode) {
-            "dynamics_processing" -> applyVirtualizerDynamicsProcessing()
-            "legacy" -> {
-                virtualizer?.let { v ->
-                    if (v.strengthSupported) {
-                        val s = (virtualizerStrength * 1000).toInt().coerceIn(0, 1000)
-                        v.setStrength(s.toShort())
-                    }
-                }
+        virtualizer?.let { v ->
+            if (v.strengthSupported) {
+                val s = (virtualizerStrength * 1000).toInt().coerceIn(0, 1000)
+                v.setStrength(s.toShort())
             }
         }
     }
-
-    // ─── Loudness Enhancer ────────────────────────────────────
 
     @Synchronized
     fun setLoudness(gainDb: Double) {
@@ -222,22 +156,9 @@ class EqualizerEngine(private val context: Context) {
         }
     }
 
-    // ─── Limiter ──────────────────────────────────────────────
-
     @Synchronized
     fun setLimiterEnabled(enabled: Boolean) {
-        limiterEnabled = enabled
-
-        if (engineMode == "dynamics_processing") {
-            dynamicsProcessing?.let { dp ->
-                try {
-                    dp.enabled = enabled
-                    Log.d(TAG, "setLimiterEnabled: $enabled")
-                } catch (e: Exception) {
-                    Log.e(TAG, "setLimiterEnabled ERROR", e)
-                }
-            }
-        }
+        Log.d(TAG, "setLimiterEnabled: no-op (legacy mode)")
     }
 
     @Synchronized
@@ -248,96 +169,16 @@ class EqualizerEngine(private val context: Context) {
         release: Double,
         postGain: Double
     ) {
-        limiterThreshold = threshold.toFloat()
-        limiterRatio = ratio.toFloat()
-        limiterAttack = attack.toFloat()
-        limiterRelease = release.toFloat()
-        limiterPostGain = postGain.toFloat()
-
-        if (engineMode == "dynamics_processing") {
-            applyLimiterDynamicsProcessing()
-        }
+        Log.d(TAG, "setLimiterParams: no-op (legacy mode)")
     }
-
-    // ─── Master Enable ────────────────────────────────────────
 
     @Synchronized
     fun setEnabled(enabled: Boolean) {
         eqEnabled = enabled
-
-        dynamicsProcessing?.let { dp -> try { dp.enabled = enabled } catch (_: Exception) {} }
-        equalizer?.let { eq -> try { eq.enabled = enabled } catch (_: Exception) {} }
-        bassBoost?.let { bb -> try { bb.enabled = enabled } catch (_: Exception) {} }
-        virtualizer?.let { v -> try { v.enabled = enabled } catch (_: Exception) {} }
+        equalizer?.let { eq -> try { eq.enabled = enabled } catch (e: Exception) {} }
+        bassBoost?.let { bb -> try { bb.enabled = enabled } catch (e: Exception) {} }
+        virtualizer?.let { v -> try { v.enabled = enabled } catch (e: Exception) {} }
     }
-
-    // ─── Internal: DynamicsProcessing ─────────────────────────
-
-    private fun tryInitDynamicsProcessing(sessionId: Int): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
-            Log.i(TAG, "DynamicsProcessing: API < 28, skipping")
-            return false
-        }
-
-        return try {
-            val dp = DynamicsProcessing(2) // stereo
-
-            setupDefaultEqBands(dp)
-            setupDefaultLimiter(dp)
-
-            dp.enabled = eqEnabled
-            dynamicsProcessing = dp
-
-            extractDynamicsProcessingBandInfo(dp)
-
-            Log.i(TAG, "DynamicsProcessing initialized OK")
-            true
-        } catch (e: Exception) {
-            Log.e(TAG, "DynamicsProcessing init FAILED", e)
-            dynamicsProcessing = null
-            false
-        }
-    }
-
-    private fun setupDefaultEqBands(dp: DynamicsProcessing) {
-        val frequencies = floatArrayOf(60f, 230f, 910f, 3600f, 14000f)
-
-        bandGains = FloatArray(frequencies.size) { 0f }
-
-        val stage = dp.getPreEqStage()
-        for (i in frequencies.indices) {
-            stage.setBand(i, DynamicsProcessing.EqBand(true, frequencies[i], 0.0f))
-        }
-        dp.setPreEqStageTo(stage)
-    }
-
-    private fun setupDefaultLimiter(dp: DynamicsProcessing) {
-        val defaultLimiter = DynamicsProcessing.Limiter(
-            true, true, 1,
-            limiterAttack, limiterRelease, limiterRatio,
-            limiterThreshold, limiterPostGain
-        )
-        dp.setLimiterAllChannelsTo(defaultLimiter)
-        dp.enabled = limiterEnabled
-    }
-
-    private fun extractDynamicsProcessingBandInfo(dp: DynamicsProcessing) {
-        val stage = dp.getPreEqStage()
-        val bandCount = stage.getBandCount()
-
-        nativeBandCount = bandCount
-
-        val freqs = mutableListOf<Int>()
-        for (i in 0 until bandCount) {
-            val band = stage.getBand(i)
-            freqs.add(band.cutoffFrequency.toInt())
-        }
-        nativeBandFrequencies = freqs
-
-        Log.i(TAG, "DP band info: count=$bandCount, freqs=$freqs")
-    }
-
-    // ─── Internal: Legacy Chain ───────────────────────────────
 
     private fun tryInitLegacyChain(sessionId: Int): Boolean {
         var anyOk = false
@@ -391,43 +232,6 @@ class EqualizerEngine(private val context: Context) {
         return anyOk
     }
 
-    // ─── Internal: Apply Operations ───────────────────────────
-
-    private fun applyBandGainDynamicsProcessing(bandIndex: Int, gainDb: Float) {
-        dynamicsProcessing?.let { dp ->
-            try {
-                val stage = dp.getPreEqStage()
-                if (bandIndex < stage.getBandCount()) {
-                    val band = stage.getBand(bandIndex)
-                    band.gainDb = gainDb
-                    stage.setBand(bandIndex, band)
-                    dp.setPreEqStageTo(stage)
-                } else {
-                    Unit
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "applyBandGainDynamicsProcessing ERROR", e)
-            }
-        }
-    }
-
-    private fun applyAllBandsDynamicsProcessing() {
-        dynamicsProcessing?.let { dp ->
-            try {
-                val stage = dp.getPreEqStage()
-                val bandCount = minOf(bandGains.size, stage.getBandCount())
-                for (i in 0 until bandCount) {
-                    val band = stage.getBand(i)
-                    band.gainDb = bandGains[i]
-                    stage.setBand(i, band)
-                }
-                dp.setPreEqStageTo(stage)
-            } catch (e: Exception) {
-                Log.e(TAG, "applyAllBandsDynamicsProcessing ERROR", e)
-            }
-        }
-    }
-
     private fun applyBandGainLegacy(bandIndex: Int, gainDb: Float) {
         equalizer?.let { eq ->
             try {
@@ -458,82 +262,25 @@ class EqualizerEngine(private val context: Context) {
         }
     }
 
-    private fun applyBassBoostDynamicsProcessing() {
-        dynamicsProcessing?.let { dp ->
-            try {
-                val stage = dp.getPreEqStage()
-                if (stage.getBandCount() > 0 && bassBoostStrength > 0) {
-                    val band = stage.getBand(0)
-                    band.gainDb = bassBoostStrength.coerceIn(0f, 12f)
-                    stage.setBand(0, band)
-                    dp.setPreEqStageTo(stage)
-                } else {
-                    Unit
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "applyBassBoostDynamicsProcessing ERROR", e)
-            }
-        }
-    }
-
-    private fun applyVirtualizerDynamicsProcessing() {
-        Log.d(TAG, "applyVirtualizerDynamicsProcessing: not available in DP mode")
-    }
-
-    private fun applyLimiterDynamicsProcessing() {
-        dynamicsProcessing?.let { dp ->
-            try {
-                val limiter = DynamicsProcessing.Limiter(
-                    true, true, 1,
-                    limiterAttack, limiterRelease, limiterRatio,
-                    limiterThreshold, limiterPostGain
-                )
-                dp.setLimiterAllChannelsTo(limiter)
-                dp.enabled = limiterEnabled
-                Log.d(TAG, "applyLimiterDynamicsProcessing OK")
-            } catch (e: Exception) {
-                Log.e(TAG, "applyLimiterDynamicsProcessing ERROR", e)
-            }
-        }
-    }
-
-    // ─── Internal: Configuration Reapplication ────────────────
-
     private fun reapplyConfiguration() {
         Log.d(TAG, "reapplyConfiguration: reapplying stored DSP state")
-
         setEnabled(eqEnabled)
         setAllBandGains(bandGains.map { it.toDouble() })
         setBassBoost(bassBoostStrength.toDouble())
         setVirtualizer(virtualizerStrength.toDouble())
         setLoudness(loudnessGain.toDouble())
         setLoudnessEnabled(loudnessEnabled)
-        setLimiterEnabled(limiterEnabled)
-        setLimiterParams(
-            limiterThreshold.toDouble(), limiterRatio.toDouble(),
-            limiterAttack.toDouble(), limiterRelease.toDouble(),
-            limiterPostGain.toDouble()
-        )
     }
-
-    // ─── Internal: Resource Cleanup ───────────────────────────
 
     private fun releaseAllEffects() {
         Log.d(TAG, "releaseAllEffects")
-
-        try { dynamicsProcessing?.release() } catch (_: Exception) {}
-        dynamicsProcessing = null
-
-        try { equalizer?.release() } catch (_: Exception) {}
+        try { equalizer?.release() } catch (e: Exception) {}
         equalizer = null
-
-        try { bassBoost?.release() } catch (_: Exception) {}
+        try { bassBoost?.release() } catch (e: Exception) {}
         bassBoost = null
-
-        try { virtualizer?.release() } catch (_: Exception) {}
+        try { virtualizer?.release() } catch (e: Exception) {}
         virtualizer = null
-
-        try { loudnessEnhancer?.release() } catch (_: Exception) {}
+        try { loudnessEnhancer?.release() } catch (e: Exception) {}
         loudnessEnhancer = null
     }
 }
