@@ -3,30 +3,37 @@ package com.daviddev.aura_music.services
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
+import com.daviddev.aura_music.MainActivity
 import com.daviddev.aura_music.audio.AudioSessionManager
+import com.daviddev.aura_music.audio.DspPrefs
 import com.daviddev.aura_music.audio.EqualizerEngine
 import com.daviddev.aura_music.audio.EffectsController
-import com.daviddev.aura_music.audio.NativeEqualizerChannel
-import io.flutter.embedding.engine.FlutterEngine
-import io.flutter.embedding.engine.FlutterEngineCache
-import io.flutter.plugin.common.MethodChannel
 
 /**
  * EqualizerForegroundService — Persistent DSP service that keeps the equalizer
  * engine alive independently from the Flutter UI lifecycle.
  *
+ * Architecture (inspired by Flow Equalizer):
+ * - Owns EqualizerEngine, AudioSessionManager, EffectsController
+ * - Shows a persistent notification (required for foreground services)
+ * - Survives activity recreation, app backgrounding, configuration changes
+ * - NO headless FlutterEngine — communication via broadcast intents
+ * - Restores DSP state from DspPrefs on creation
+ * - Stopped explicitly by Flutter or when audio session ends
+ *
  * Lifecycle:
- * 1. Started by Flutter via MethodChannel or by BootCompleteReceiver
- * 2. Owns EqualizerEngine, AudioSessionManager, EffectsController
- * 3. Shows a persistent notification (required for foreground services)
- * 4. Survives activity recreation, app backgrounding, configuration changes
- * 5. Stopped explicitly by Flutter or when audio session ends
+ * 1. Started by Flutter via MethodChannel or by BootCompleteReceiver/SessionChangeService
+ * 2. DSP engine initialized in onCreate(), state restored from DspPrefs
+ * 3. Audio session connected via AudioSessionReceiver → SessionChangeService
+ * 4. Notification with PendingIntent to reopen app
+ * 5. Stopped via ACTION_STOP intent
  */
 class EqualizerForegroundService : Service() {
 
@@ -50,12 +57,6 @@ class EqualizerForegroundService : Service() {
         var effectsController: EffectsController? = null
             private set
 
-        @Volatile
-        var methodChannel: MethodChannel? = null
-            private set
-
-        private var flutterEngine: FlutterEngine? = null
-
         fun start(context: Context) {
             val intent = Intent(context, EqualizerForegroundService::class.java).apply {
                 action = ACTION_START
@@ -75,13 +76,24 @@ class EqualizerForegroundService : Service() {
             context.startService(intent)
             Log.i(TAG, "stop: EqualizerForegroundService stop requested")
         }
+
+        fun reinitialize(context: Context) {
+            val intent = Intent(context, EqualizerForegroundService::class.java).apply {
+                action = ACTION_REINITIALIZE
+            }
+            context.startService(intent)
+            Log.i(TAG, "reinitialize: EqualizerForegroundService reinitialize requested")
+        }
     }
+
+    private lateinit var dspPrefs: DspPrefs
 
     override fun onCreate() {
         super.onCreate()
         Log.i(TAG, "onCreate: initializing DSP engine")
 
         createNotificationChannel()
+        dspPrefs = DspPrefs(applicationContext)
 
         engine = EqualizerEngine(applicationContext)
         sessionManager = AudioSessionManager()
@@ -89,7 +101,8 @@ class EqualizerForegroundService : Service() {
 
         sessionManager!!.bindEngine(engine!!)
 
-        setupMethodChannel()
+        // Restore DSP state from persistence
+        restoreDspState()
 
         Log.i(TAG, "onCreate: DSP engine initialized, mode=${engine!!.getEngineMode()}")
     }
@@ -102,7 +115,7 @@ class EqualizerForegroundService : Service() {
             startForeground(
                 NOTIFICATION_ID,
                 notification,
-                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
             )
         } else {
             startForeground(NOTIFICATION_ID, notification)
@@ -137,33 +150,46 @@ class EqualizerForegroundService : Service() {
         sessionManager = null
 
         effectsController = null
-        methodChannel = null
-
-        flutterEngine?.destroy()
-        flutterEngine = null
 
         super.onDestroy()
     }
 
-    private fun setupMethodChannel() {
-        val existingEngine = FlutterEngineCache.getInstance().get("aura_main_engine")
+    /**
+     * Restore DSP state from DspPrefs.
+     * Called after engine initialization to apply saved configuration.
+     */
+    private fun restoreDspState() {
+        val config = dspPrefs.loadConfig()
+        Log.i(TAG, "restoreDspState: preset=${config.presetName}, bands=${config.bandGains.size}, bass=${config.bassBoost}dB")
 
-        val dartExecutor = if (existingEngine != null) {
-            Log.i(TAG, "setupMethodChannel: using cached FlutterEngine")
-            flutterEngine = existingEngine as FlutterEngine
-            existingEngine.dartExecutor
-        } else {
-            Log.i(TAG, "setupMethodChannel: creating headless FlutterEngine")
-            flutterEngine = FlutterEngine(applicationContext)
-            flutterEngine!!.dartExecutor
+        // Apply EQ enabled state
+        effectsController?.setEqEnabled(config.eqEnabled)
+
+        // Apply band gains
+        if (config.bandGains.isNotEmpty()) {
+            engine?.setAllBandGains(config.bandGains)
         }
 
-        methodChannel = MethodChannel(dartExecutor.binaryMessenger, NativeEqualizerChannel.CHANNEL_NAME)
-        methodChannel!!.setMethodCallHandler(
-            NativeEqualizerChannel(engine!!, sessionManager!!, effectsController!!)
-        )
+        // Apply bass
+        engine?.setBassBoost(config.bassBoost)
+        engine?.setBassFrequency(config.bassFrequencyHz)
 
-        Log.i(TAG, "setupMethodChannel: MethodChannel registered")
+        // Apply virtualizer
+        engine?.setVirtualizer(config.virtualizer)
+
+        // Apply loudness
+        engine?.setLoudness(config.loudness)
+        engine?.setLoudnessEnabled(config.loudnessEnabled)
+
+        // Apply limiter
+        engine?.setLimiterEnabled(config.limiterEnabled)
+        engine?.setLimiterParams(
+            config.limiterThreshold,
+            config.limiterRatio,
+            config.limiterAttack,
+            config.limiterRelease,
+            config.limiterPostGain
+        )
     }
 
     private fun createNotificationChannel() {
@@ -185,6 +211,16 @@ class EqualizerForegroundService : Service() {
     }
 
     private fun buildNotification(): Notification {
+        // PendingIntent to reopen the app when notification is tapped
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            0,
+            Intent(this, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
+            },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
         val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             Notification.Builder(this, NOTIFICATION_CHANNEL_ID)
         } else {
@@ -192,10 +228,18 @@ class EqualizerForegroundService : Service() {
             Notification.Builder(this)
         }
 
+        val engineStatus = engine?.getEngineMode() ?: "inactive"
+        val statusText = when (engineStatus) {
+            "dynamics_processing" -> "DSP Engine active"
+            "legacy" -> "EQ active (legacy mode)"
+            else -> "EQ inactive"
+        }
+
         return builder
-            .setContentTitle("AURA Music — DSP Engine")
-            .setContentText("Equalizer active")
+            .setContentTitle("AURA Music — Equalizer")
+            .setContentText(statusText)
             .setSmallIcon(android.R.drawable.ic_media_play)
+            .setContentIntent(pendingIntent)
             .setOngoing(true)
             .setPriority(Notification.PRIORITY_LOW)
             .build()

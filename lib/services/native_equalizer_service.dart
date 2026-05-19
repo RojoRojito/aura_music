@@ -71,6 +71,15 @@ class NativeEqualizerService {
     }
   }
 
+  /// Set all EQ band gains at once.
+  Future<void> setAllBandGains(List<double> gains) async {
+    try {
+      await _channel.invokeMethod("setAllBandGains", {"gains": gains});
+    } catch (e) {
+      debugPrint('[NativeEQ] setAllBandGains ERROR: $e');
+    }
+  }
+
   /// Set bass boost strength (0-15 dB).
   Future<void> setBassBoost(double gainDb) async {
     try {
@@ -137,7 +146,7 @@ class NativeEqualizerService {
     }
   }
 
-  /// Set bass frequency (handled in Dart, no-op on native side).
+  /// Set bass frequency (30-120 Hz).
   Future<void> setBassFrequency(int hz) async {
     try {
       await _channel.invokeMethod("setBassFrequency", {"hz": hz});
@@ -165,6 +174,42 @@ class NativeEqualizerService {
       debugPrint('[NativeEQ] reinitializeSession OK');
     } catch (e) {
       debugPrint('[NativeEQ] reinitializeSession ERROR: $e');
+    }
+  }
+
+  // ─── DSP State Persistence ───────────────────────────────────
+
+  /// Save the current DSP state to native SharedPreferences.
+  Future<void> saveDspState() async {
+    try {
+      await _channel.invokeMethod("saveDspState");
+      debugPrint('[NativeEQ] saveDspState OK');
+    } catch (e) {
+      debugPrint('[NativeEQ] saveDspState ERROR: $e');
+    }
+  }
+
+  /// Load DSP state from native SharedPreferences.
+  /// Returns a map with all DSP configuration values.
+  Future<Map<String, dynamic>> loadDspState() async {
+    try {
+      final result = await _channel.invokeMethod("loadDspState");
+      if (result is Map) {
+        return Map<String, dynamic>.from(result);
+      }
+      return {};
+    } catch (e) {
+      debugPrint('[NativeEQ] loadDspState ERROR: $e');
+      return {};
+    }
+  }
+
+  /// Set whether the DSP engine should be restored after device boot.
+  Future<void> setRestoreAfterBoot(bool enabled) async {
+    try {
+      await _channel.invokeMethod("setRestoreAfterBoot", {"enabled": enabled});
+    } catch (e) {
+      debugPrint('[NativeEQ] setRestoreAfterBoot ERROR: $e');
     }
   }
 }

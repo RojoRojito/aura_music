@@ -5,23 +5,27 @@ import android.content.Context
 import android.content.Intent
 import android.media.audiofx.AudioEffect
 import android.util.Log
-import com.daviddev.aura_music.audio.AudioSessionManager
-import com.daviddev.aura_music.services.EqualizerForegroundService
+import com.daviddev.aura_music.services.SessionChangeService
 
 /**
- * AudioSessionReceiver — Listens for audio effect control session events.
+ * AudioSessionReceiver — Lightweight broadcast receiver for audio session events.
  *
- * Receives broadcasts from Android's audio framework when:
- * - OPEN_AUDIO_EFFECT_CONTROL_SESSION: A new audio session is available for effects
- * - CLOSE_AUDIO_EFFECT_CONTROL_SESSION: An audio session is being closed
+ * Architecture (inspired by Flow Equalizer):
+ * - Receives OPEN/CLOSE_AUDIO_EFFECT_CONTROL_SESSION broadcasts from Android
+ * - Delegates work to SessionChangeService (JobIntentService) for reliable processing
+ * - Does NOT do heavy work directly (avoids BroadcastReceiver 10-second timeout)
+ * - Registered in AndroidManifest.xml (survives Activity destruction)
  *
- * This receiver bridges Android's audio session lifecycle to our DSP engine.
- * When a session opens, we notify AudioSessionManager to reconnect the DSP chain.
- * When a session closes, we release DSP resources safely.
+ * Why delegate to SessionChangeService?
+ * - BroadcastReceiver has a strict 10-second execution limit
+ * - JobIntentService holds a wakelock and can run longer
+ * - JobIntentService can start foreground services from background
+ * - Survives Doze mode and background restrictions
  *
- * Registration:
- * - Must be registered dynamically (not in manifest) with the correct intent filter
- * - Registered in MainActivity.onCreate() or EqualizerForegroundService.onCreate()
+ * Flow pattern:
+ * - Flow's SessionReceiver enqueues work to SessionChangeService
+ * - SessionChangeService then starts/communicates with ForegroundService
+ * - This decouples the receiver from the DSP engine lifecycle
  */
 class AudioSessionReceiver : BroadcastReceiver() {
 
@@ -36,44 +40,19 @@ class AudioSessionReceiver : BroadcastReceiver() {
 
         Log.d(TAG, "onReceive: action=$action, sessionId=$sessionId, package=$packageName")
 
-        // Only handle sessions from our own app
-        if (packageName != context.packageName) {
-            Log.d(TAG, "onReceive: ignoring session from different package")
-            return
-        }
-
         when (action) {
             AudioEffect.ACTION_OPEN_AUDIO_EFFECT_CONTROL_SESSION -> {
+                if (sessionId <= 0) {
+                    Log.w(TAG, "onReceive: invalid sessionId=$sessionId")
+                    return
+                }
                 Log.i(TAG, "ACTION_OPEN_AUDIO_EFFECT_CONTROL_SESSION: sessionId=$sessionId")
-                handleSessionOpen(context, sessionId)
+                SessionChangeService.enqueueSessionOpen(context, sessionId, packageName)
             }
             AudioEffect.ACTION_CLOSE_AUDIO_EFFECT_CONTROL_SESSION -> {
                 Log.i(TAG, "ACTION_CLOSE_AUDIO_EFFECT_CONTROL_SESSION: sessionId=$sessionId")
-                handleSessionClose(context, sessionId)
+                SessionChangeService.enqueueSessionClose(context, sessionId)
             }
-        }
-    }
-
-    private fun handleSessionOpen(context: Context, sessionId: Int) {
-        if (sessionId <= 0) {
-            Log.w(TAG, "handleSessionOpen: invalid sessionId=$sessionId")
-            return
-        }
-
-        // Notify the session manager
-        EqualizerForegroundService.sessionManager?.onNewSessionId(sessionId)
-            ?: Log.w(TAG, "handleSessionOpen: sessionManager not available")
-    }
-
-    private fun handleSessionClose(context: Context, sessionId: Int) {
-        val currentSession = EqualizerForegroundService.sessionManager?.getSessionId()
-
-        // Only close if it matches our current session
-        if (sessionId == currentSession || currentSession == null || currentSession <= 0) {
-            Log.i(TAG, "handleSessionClose: releasing DSP for session=$sessionId")
-            EqualizerForegroundService.sessionManager?.onSessionClosed()
-        } else {
-            Log.d(TAG, "handleSessionClose: sessionId=$sessionId doesn't match current=$currentSession, ignoring")
         }
     }
 }

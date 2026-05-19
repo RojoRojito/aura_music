@@ -58,6 +58,11 @@ class EffectsController(private val engine: EqualizerEngine) {
 
     fun isBassEnabled(): Boolean = bassEnabled
 
+    fun setBassFrequency(hz: Int) {
+        Log.d(TAG, "setBassFrequency: $hz Hz")
+        engine.setBassFrequency(hz)
+    }
+
     // ─── Loudness Enhancer ────────────────────────────────────
 
     fun setLoudnessEnabled(enabled: Boolean) {
@@ -122,6 +127,7 @@ class EffectsController(private val engine: EqualizerEngine) {
 
         engine.setEnabled(true)
         engine.setBassBoost(0.0)
+        engine.setBassFrequency(80)
         engine.setLoudnessEnabled(false)
         engine.setLimiterEnabled(false)
         engine.setVirtualizer(0.0)

@@ -1,5 +1,6 @@
 package com.daviddev.aura_music.audio
 
+import android.content.Context
 import android.util.Log
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
@@ -10,12 +11,14 @@ import io.flutter.plugin.common.MethodChannel
  * Responsibilities:
  * - Receive commands from Flutter via MethodChannel
  * - Forward commands to EqualizerEngine and EffectsController
+ * - Persist DSP state to DspPrefs on every change
  * - Return results/errors to Flutter
  * - NO DSP logic — pure delegation layer
  *
  * MethodChannel: "com.daviddev.aura/equalizer"
  */
 class NativeEqualizerChannel(
+    private val context: Context,
     private val engine: EqualizerEngine,
     private val sessionManager: AudioSessionManager,
     private val effectsController: EffectsController
@@ -26,6 +29,8 @@ class NativeEqualizerChannel(
         const val CHANNEL_NAME = "com.daviddev.aura/equalizer"
     }
 
+    private val dspPrefs = DspPrefs(context)
+
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         try {
             when (call.method) {
@@ -34,6 +39,7 @@ class NativeEqualizerChannel(
                 "getBandCount" -> handleGetBandCount(result)
                 "getBandFrequencies" -> handleGetBandFrequencies(result)
                 "setBandGain" -> handleSetBandGain(call, result)
+                "setAllBandGains" -> handleSetAllBandGains(call, result)
                 "setBassBoost" -> handleSetBassBoost(call, result)
                 "setVirtualizer" -> handleSetVirtualizer(call, result)
                 "setLoudness" -> handleSetLoudness(call, result)
@@ -43,6 +49,9 @@ class NativeEqualizerChannel(
                 "setBassFrequency" -> handleSetBassFrequency(call, result)
                 "getEngineMode" -> handleGetEngineMode(result)
                 "reinitializeSession" -> handleReinitializeSession(result)
+                "saveDspState" -> handleSaveDspState(result)
+                "loadDspState" -> handleLoadDspState(result)
+                "setRestoreAfterBoot" -> handleSetRestoreAfterBoot(call, result)
                 else -> result.notImplemented()
             }
         } catch (e: Exception) {
@@ -69,6 +78,8 @@ class NativeEqualizerChannel(
         val enabled = call.argument<Boolean>("enabled") ?: false
         Log.i(TAG, ">> setEnabled: $enabled")
         effectsController.setEqEnabled(enabled)
+        dspPrefs.setEqEnabled(enabled)
+        dspPrefs.setRestoreAfterBoot(enabled)
         result.success(null)
     }
 
@@ -89,6 +100,22 @@ class NativeEqualizerChannel(
         val gainDb = call.argument<Double>("gainDb") ?: 0.0
         Log.d(TAG, ">> setBandGain: band=$bandIndex, gain=$gainDb dB")
         engine.setBandGain(bandIndex, gainDb)
+        // Persist individual band change
+        val currentGains = dspPrefs.getBandGains().toMutableList()
+        while (currentGains.size <= bandIndex) {
+            currentGains.add(0.0)
+        }
+        currentGains[bandIndex] = gainDb
+        dspPrefs.setBandGains(currentGains)
+        result.success(null)
+    }
+
+    private fun handleSetAllBandGains(call: MethodCall, result: MethodChannel.Result) {
+        @Suppress("UNCHECKED_CAST")
+        val gains = call.argument<List<Double>>("gains") ?: emptyList()
+        Log.d(TAG, ">> setAllBandGains: ${gains.size} bands")
+        engine.setAllBandGains(gains)
+        dspPrefs.setBandGains(gains)
         result.success(null)
     }
 
@@ -96,6 +123,7 @@ class NativeEqualizerChannel(
         val gainDb = call.argument<Double>("gainDb") ?: 0.0
         Log.d(TAG, ">> setBassBoost: gain=$gainDb dB")
         engine.setBassBoost(gainDb)
+        dspPrefs.setBassBoost(gainDb)
         result.success(null)
     }
 
@@ -103,6 +131,7 @@ class NativeEqualizerChannel(
         val strength = call.argument<Double>("strength") ?: 0.0
         Log.d(TAG, ">> setVirtualizer: strength=$strength")
         engine.setVirtualizer(strength)
+        dspPrefs.setVirtualizer(strength)
         result.success(null)
     }
 
@@ -110,6 +139,7 @@ class NativeEqualizerChannel(
         val gainDb = call.argument<Double>("gainDb") ?: 0.0
         Log.d(TAG, ">> setLoudness: gain=$gainDb dB")
         engine.setLoudness(gainDb)
+        dspPrefs.setLoudness(gainDb)
         result.success(null)
     }
 
@@ -117,6 +147,7 @@ class NativeEqualizerChannel(
         val enabled = call.argument<Boolean>("enabled") ?: false
         Log.d(TAG, ">> setLoudnessEnabled: $enabled")
         engine.setLoudnessEnabled(enabled)
+        dspPrefs.setLoudnessEnabled(enabled)
         result.success(null)
     }
 
@@ -124,6 +155,7 @@ class NativeEqualizerChannel(
         val enabled = call.argument<Boolean>("enabled") ?: false
         Log.d(TAG, ">> setLimiterEnabled: $enabled")
         engine.setLimiterEnabled(enabled)
+        dspPrefs.setLimiterEnabled(enabled)
         result.success(null)
     }
 
@@ -136,11 +168,19 @@ class NativeEqualizerChannel(
 
         Log.d(TAG, ">> setLimiter: threshold=$threshold, ratio=$ratio, attack=$attack, release=$release, postGain=$postGain")
         engine.setLimiterParams(threshold, ratio, attack, release, postGain)
+        dspPrefs.setLimiterThreshold(threshold)
+        dspPrefs.setLimiterRatio(ratio)
+        dspPrefs.setLimiterAttack(attack)
+        dspPrefs.setLimiterRelease(release)
+        dspPrefs.setLimiterPostGain(postGain)
         result.success(null)
     }
 
     private fun handleSetBassFrequency(call: MethodCall, result: MethodChannel.Result) {
-        Log.d(TAG, ">> setBassFrequency: handled in Dart")
+        val hz = call.argument<Int>("hz") ?: 80
+        Log.d(TAG, ">> setBassFrequency: $hz Hz")
+        engine.setBassFrequency(hz)
+        dspPrefs.setBassFrequency(hz)
         result.success(null)
     }
 
@@ -153,6 +193,59 @@ class NativeEqualizerChannel(
     private fun handleReinitializeSession(result: MethodChannel.Result) {
         Log.i(TAG, ">> reinitializeSession")
         sessionManager.reinitializeCurrentSession()
+        result.success(null)
+    }
+
+    // ─── DSP State Persistence ─────────────────────────────────
+
+    private fun handleSaveDspState(result: MethodChannel.Result) {
+        Log.i(TAG, ">> saveDspState")
+        val config = DspPrefs.DspConfig(
+            eqEnabled = effectsController.isEqEnabled(),
+            bandGains = dspPrefs.getBandGains(),
+            bassBoost = dspPrefs.getBassBoost(),
+            bassFrequencyHz = dspPrefs.getBassFrequency(),
+            virtualizer = dspPrefs.getVirtualizer(),
+            loudness = dspPrefs.getLoudness(),
+            loudnessEnabled = dspPrefs.isLoudnessEnabled(),
+            limiterEnabled = dspPrefs.isLimiterEnabled(),
+            limiterThreshold = dspPrefs.getLimiterThreshold(),
+            limiterRatio = dspPrefs.getLimiterRatio(),
+            limiterAttack = dspPrefs.getLimiterAttack(),
+            limiterRelease = dspPrefs.getLimiterRelease(),
+            limiterPostGain = dspPrefs.getLimiterPostGain(),
+            presetName = dspPrefs.getPresetName()
+        )
+        dspPrefs.saveConfig(config)
+        result.success(null)
+    }
+
+    private fun handleLoadDspState(result: MethodChannel.Result) {
+        Log.i(TAG, ">> loadDspState")
+        val config = dspPrefs.loadConfig()
+        val stateMap = mapOf(
+            "eqEnabled" to config.eqEnabled,
+            "bandGains" to config.bandGains,
+            "bassBoost" to config.bassBoost,
+            "bassFrequencyHz" to config.bassFrequencyHz,
+            "virtualizer" to config.virtualizer,
+            "loudness" to config.loudness,
+            "loudnessEnabled" to config.loudnessEnabled,
+            "limiterEnabled" to config.limiterEnabled,
+            "limiterThreshold" to config.limiterThreshold,
+            "limiterRatio" to config.limiterRatio,
+            "limiterAttack" to config.limiterAttack,
+            "limiterRelease" to config.limiterRelease,
+            "limiterPostGain" to config.limiterPostGain,
+            "presetName" to config.presetName
+        )
+        result.success(stateMap)
+    }
+
+    private fun handleSetRestoreAfterBoot(call: MethodCall, result: MethodChannel.Result) {
+        val enabled = call.argument<Boolean>("enabled") ?: false
+        Log.d(TAG, ">> setRestoreAfterBoot: $enabled")
+        dspPrefs.setRestoreAfterBoot(enabled)
         result.success(null)
     }
 }

@@ -8,6 +8,7 @@
         android:maxSdkVersion="29"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
@@ -46,7 +47,17 @@
         <!-- Equalizer Foreground Service — persistent DSP engine -->
         <service
             android:name=".services.EqualizerForegroundService"
-            android:foregroundServiceType="mediaPlayback"
+            android:foregroundServiceType="specialUse"
+            android:exported="false">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="This foreground service uses the AudioEffect class to enable custom audio enhancements for music playback."/>
+        </service>
+
+        <!-- Session Change Service — handles audio session lifecycle events -->
+        <service
+            android:name=".services.SessionChangeService"
+            android:permission="android.permission.BIND_JOB_SERVICE"
             android:exported="false" />
 
         <!-- Media button receiver (audio_service package) -->
@@ -65,6 +76,17 @@
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED"/>
                 <action android:name="android.intent.action.QUICKBOOT_POWERON"/>
+            </intent-filter>
+        </receiver>
+
+        <!-- Audio session receiver — connects DSP to audio playback sessions -->
+        <receiver
+            android:name=".receivers.AudioSessionReceiver"
+            android:exported="true"
+            android:enabled="true">
+            <intent-filter>
+                <action android:name="android.media.action.OPEN_AUDIO_EFFECT_CONTROL_SESSION"/>
+                <action android:name="android.media.action.CLOSE_AUDIO_EFFECT_CONTROL_SESSION"/>
             </intent-filter>
         </receiver>
 
