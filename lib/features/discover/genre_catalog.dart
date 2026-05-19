@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
@@ -79,8 +80,9 @@ class GenreCatalog {
       final data = jsonDecode(json) as Map<String, dynamic>;
       _catalog = data['artists'] as Map<String, dynamic>;
       _loaded = true;
+      debugPrint('[GenreCatalog] ✅ Cargado: ${_catalog.length} artistas');
     } catch (e) {
-      debugPrint('[GenreCatalog] Failed to load catalog: $e');
+      debugPrint('[GenreCatalog] ❌ Error cargando catálogo: $e');
     }
   }
 

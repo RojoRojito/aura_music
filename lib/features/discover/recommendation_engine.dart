@@ -28,12 +28,14 @@ class RecommendationEngine extends ChangeNotifier {
   bool get hasData => _topPicks.isNotEmpty || _mostPlayed.isNotEmpty;
 
   Future<void> compute() async {
+    debugPrint('[Engine] 🔄 compute() iniciado');
     _isLoading = true;
     notifyListeners();
 
     _allStats = await statsRepository.getAllStats();
 
     await _buildProfile();
+    debugPrint('[Engine] 👤 UserProfile: topGenre=${_userProfile?.topGenre} topMood=${_userProfile?.topMood}');
 
     final featuresMap = await featuresRepository.getAllFeaturesMap();
 
@@ -72,6 +74,17 @@ class RecommendationEngine extends ChangeNotifier {
     _mostPlayed = _mostPlayed.take(10).toList();
 
     _isLoading = false;
+    debugPrint('[Engine] ✅ compute() completado');
+    debugPrint('[Engine] 📊 topPicks: ${_topPicks.length} canciones');
+    if (_topPicks.isNotEmpty) {
+      debugPrint('[Engine] 🥇 #1: ${_topPicks.first.title} | score: ${_topPicks.first.score.toStringAsFixed(2)}');
+    }
+    if (_topPicks.length >= 2) {
+      debugPrint('[Engine] 🥈 #2: ${_topPicks[1].title} | score: ${_topPicks[1].score.toStringAsFixed(2)}');
+    }
+    if (_topPicks.length >= 3) {
+      debugPrint('[Engine] 🥉 #3: ${_topPicks[2].title} | score: ${_topPicks[2].score.toStringAsFixed(2)}');
+    }
     notifyListeners();
   }
 

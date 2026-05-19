@@ -1,8 +1,9 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'genre_catalog.dart';
 
-const String kLastFmApiKey = 'TU_API_KEY_AQUI';
+const String kLastFmApiKey = '503387ef0a88aacff7d531db6d20dc';
 const String kLastFmBaseUrl = 'https://ws.audioscrobbler.com/2.0/';
 
 class LastFmEnricher {
@@ -13,6 +14,7 @@ class LastFmEnricher {
   final _client = http.Client();
 
   Future<Map<String, dynamic>?> fetchArtistData(String artistName) async {
+    debugPrint('[LastFM] Fetching: $artistName');
     try {
       final uri = Uri.parse(kLastFmBaseUrl).replace(queryParameters: {
         'method': 'artist.gettoptags',
@@ -25,11 +27,17 @@ class LastFmEnricher {
       final response =
           await _client.get(uri).timeout(const Duration(seconds: 8));
 
-      if (response.statusCode != 200) return null;
+      if (response.statusCode != 200) {
+        debugPrint('[LastFM] Error HTTP ${response.statusCode} para: $artistName');
+        return null;
+      }
 
       final data = jsonDecode(response.body) as Map<String, dynamic>;
 
-      if (data.containsKey('error')) return null;
+      if (data.containsKey('error')) {
+        debugPrint('[LastFM] API error para $artistName: ${data['error']}');
+        return null;
+      }
 
       final tagsData = data['toptags']?['tag'];
       if (tagsData == null) return null;
@@ -41,8 +49,12 @@ class LastFmEnricher {
       final genre = _resolveGenreFromTags(tags);
       final moods = _resolveMoodsFromTags(tags, genre);
 
-      if (genre == null) return null;
+      if (genre == null) {
+        debugPrint('[LastFM] Sin género reconocido para: $artistName | tags: $tags');
+        return null;
+      }
 
+      debugPrint('[LastFM] ✅ $artistName → género: $genre | moods: $moods');
       return {
         'genre': genre,
         'subgenre': null,
@@ -50,6 +62,7 @@ class LastFmEnricher {
         'source': 'lastfm',
       };
     } catch (_) {
+      debugPrint('[LastFM] ❌ Sin internet o timeout para: $artistName');
       return null;
     }
   }

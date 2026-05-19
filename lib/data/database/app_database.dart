@@ -1,7 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
-const int _currentVersion = 5;
+const int _currentVersion = 6;
 
 typedef Migration = Future<void> Function(Database db, int from, int to);
 
@@ -30,6 +30,11 @@ final Map<int, Migration> _migrations = {
         enriched_at TEXT
       )
     ''');
+  },
+  6: (db, from, to) async {
+    await db.execute(
+      'ALTER TABLE song_stats ADD COLUMN engagement_score REAL DEFAULT 0.0'
+    );
   },
 };
 
@@ -84,7 +89,8 @@ class AppDatabase {
          is_favorite INTEGER NOT NULL DEFAULT 0,
          last_played TEXT,
          repeat_count INTEGER NOT NULL DEFAULT 0,
-         playlist_add_count INTEGER NOT NULL DEFAULT 0)''',
+         playlist_add_count INTEGER NOT NULL DEFAULT 0,
+         engagement_score REAL NOT NULL DEFAULT 0.0)''',
     '''CREATE TABLE IF NOT EXISTS song_features (
          song_id INTEGER PRIMARY KEY,
          normalized_genre TEXT,

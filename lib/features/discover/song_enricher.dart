@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import '../../data/models/song.dart';
 import '../../data/models/song_features.dart';
 import '../../data/repositories/song_features_repository.dart';
@@ -12,12 +13,13 @@ class SongEnricher {
   bool _isRunning = false;
 
   Future<SongFeatures> enrichSong(Song song) async {
+    debugPrint('[Enricher] Procesando: ${song.artist} - ${song.title}');
     final artistName = song.artist;
     final rawId3Genre = song.genre;
 
     final lastfmData = await LastFmEnricher.instance.fetchArtistData(artistName);
     if (lastfmData != null) {
-      return SongFeatures(
+      final features = SongFeatures(
         songId: song.id,
         normalizedGenre: lastfmData['genre'] as String?,
         subGenre: lastfmData['subgenre'] as String?,
@@ -25,12 +27,14 @@ class SongEnricher {
         source: 'lastfm',
         enrichedAt: DateTime.now(),
       );
+      debugPrint('[Enricher] ✅ LastFM: ${song.artist} → ${features.normalizedGenre}');
+      return features;
     }
 
     final catalogData = GenreCatalog.instance.lookupArtist(artistName);
     if (catalogData != null) {
       final genre = catalogData['genre'] as String?;
-      return SongFeatures(
+      final features = SongFeatures(
         songId: song.id,
         normalizedGenre: genre,
         subGenre: catalogData['subgenre'] as String?,
@@ -38,11 +42,13 @@ class SongEnricher {
         source: 'catalog',
         enrichedAt: DateTime.now(),
       );
+      debugPrint('[Enricher] 📖 Catálogo: ${song.artist} → ${features.normalizedGenre}');
+      return features;
     }
 
     final normalizedGenre = GenreCatalog.instance.normalizeId3Genre(rawId3Genre);
     if (normalizedGenre != null) {
-      return SongFeatures(
+      final features = SongFeatures(
         songId: song.id,
         normalizedGenre: normalizedGenre,
         subGenre: null,
@@ -50,8 +56,11 @@ class SongEnricher {
         source: 'id3',
         enrichedAt: DateTime.now(),
       );
+      debugPrint('[Enricher] 🏷️ ID3: ${song.artist} → ${features.normalizedGenre}');
+      return features;
     }
 
+    debugPrint('[Enricher] ❓ Sin datos: ${song.artist}');
     return SongFeatures.unknown(song.id);
   }
 
@@ -72,6 +81,8 @@ class SongEnricher {
         }
       }
 
+      debugPrint('[Enricher] Iniciando: ${unenriched.length} canciones sin enriquecer');
+
       for (var i = 0; i < unenriched.length; i++) {
         final features = await enrichSong(unenriched[i]);
         await featuresRepo.saveFeatures(features);
@@ -81,6 +92,8 @@ class SongEnricher {
           await Future.delayed(const Duration(milliseconds: 250));
         }
       }
+
+      debugPrint('[Enricher] 🎉 Enriquecimiento completado');
     } finally {
       _isRunning = false;
     }

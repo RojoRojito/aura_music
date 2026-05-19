@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import '../../data/models/song_stats.dart';
 import '../../data/models/user_profile.dart';
 import '../../data/repositories/song_features_repository.dart';
@@ -47,6 +48,12 @@ class ProfileBuilder {
         }
       }
     }
+
+    debugPrint('[Profile] 👤 Perfil construido:');
+    debugPrint('[Profile]   Géneros: ${_normalize(genreRaw)}');
+    debugPrint('[Profile]   Moods: ${_normalize(moodRaw)}');
+    debugPrint('[Profile]   Top artista: ${artistRaw.isEmpty ? "ninguno" : artistRaw.entries.reduce((a,b) => a.value > b.value ? a : b).key}');
+    debugPrint('[Profile]   Canciones analizadas: ${allStats.where((s) => s.playCount > 0).length}');
 
     return UserProfile(
       genreAffinities: _normalize(genreRaw),

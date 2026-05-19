@@ -77,7 +77,6 @@ Future<void> main() async {
   final featuresRepo = SongFeaturesRepository();
   final recommendationEngine =
       RecommendationEngine(statsRepository, featuresRepo);
-  await recommendationEngine.compute();
 
   final statsTracker = StatsTracker(
     statsRepository: statsRepository,
