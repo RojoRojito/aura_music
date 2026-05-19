@@ -10,6 +10,7 @@ import 'data/repositories/playlist_repository.dart';
 import 'data/repositories/favorites_repository.dart';
 import 'data/database/app_database.dart';
 import 'data/repositories/stats_repository.dart';
+import 'data/repositories/song_features_repository.dart';
 import 'features/player/player_controller.dart';
 import 'features/library/library_controller.dart';
 import 'features/settings/settings_controller.dart';
@@ -20,6 +21,8 @@ import 'services/native_equalizer_service.dart';
 import 'services/equalizer_state.dart';
 import 'features/equalizer/equalizer_controller.dart';
 import 'features/discover/recommendation_engine.dart';
+import 'features/discover/genre_catalog.dart';
+import 'features/discover/song_enricher.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -33,9 +36,9 @@ Future<void> main() async {
 
   final settingsController = SettingsController();
   await settingsController.init();
-  
+
   await AppDatabase.instance.database;
-  
+
   final eqRepository = EqRepository();
   final favoritesRepository = FavoritesRepository();
   await favoritesRepository.loadFavorites();
@@ -56,7 +59,6 @@ Future<void> main() async {
     audioHandler = AuraAudioHandler();
   }
 
-  // New architecture: create the DSP components
   final nativeEqualizerService = NativeEqualizerService();
   final equalizerService = EqualizerService(eqRepository);
   final equalizerState = equalizerService.state;
@@ -71,7 +73,10 @@ Future<void> main() async {
 
   final statsRepository = StatsRepository.instance;
   await statsRepository.clearOldEvents(keepDays: 30);
-  final recommendationEngine = RecommendationEngine(statsRepository);
+
+  final featuresRepo = SongFeaturesRepository();
+  final recommendationEngine =
+      RecommendationEngine(statsRepository, featuresRepo);
   await recommendationEngine.compute();
 
   final statsTracker = StatsTracker(
@@ -96,7 +101,6 @@ Future<void> main() async {
     });
   };
 
-  // Audio session ID callback — forward to new DSP engine
   audioHandler.onAudioSessionId = (sessionId) {
     debugPrint('[main] onAudioSessionId callback FIRED: sessionId=$sessionId');
     equalizerController.initSession(sessionId);
@@ -108,6 +112,7 @@ Future<void> main() async {
       Provider<AuraAudioHandler>(create: (_) => audioHandler),
       Provider<MediaScanner>(create: (_) => MediaScanner()),
       Provider<StatsRepository>.value(value: statsRepository),
+      Provider<SongFeaturesRepository>.value(value: featuresRepo),
       ChangeNotifierProvider.value(value: playerController),
       ChangeNotifierProvider(
           create: (c) => LibraryController(
@@ -121,18 +126,31 @@ Future<void> main() async {
       }),
       ChangeNotifierProvider.value(value: favoritesRepository),
       ChangeNotifierProvider<EqRepository>(create: (_) => eqRepository),
-      // Legacy provider for backward compatibility
       ChangeNotifierProvider<EqualizerService>.value(value: equalizerService),
-      // New architecture providers
       Provider<NativeEqualizerService>.value(value: nativeEqualizerService),
       ChangeNotifierProvider<EqualizerState>.value(value: equalizerState),
-      ChangeNotifierProvider<EqualizerController>.value(value: equalizerController),
+      ChangeNotifierProvider<EqualizerController>.value(
+          value: equalizerController),
       ChangeNotifierProvider.value(value: settingsController),
       ChangeNotifierProvider.value(value: themeService),
-      ChangeNotifierProvider<RecommendationEngine>.value(value: recommendationEngine),
+      ChangeNotifierProvider<RecommendationEngine>.value(
+          value: recommendationEngine),
       Provider<StatsTracker>.value(value: statsTracker),
     ],
     child: Builder(builder: (context) {
+      GenreCatalog.instance.load(context);
+
+      MediaScanner().scanSongs().then((result) {
+        if (result.status == ScanStatus.success) {
+          SongEnricher.instance
+              .enrichLibrary(
+                songs: result.songs,
+                featuresRepo: featuresRepo,
+              )
+              .catchError((_) {});
+        }
+      }).catchError((_) {});
+
       recEngineRef = context.read<RecommendationEngine>();
       recEngineRef?.compute();
       return const AuraApp();

@@ -1,0 +1,474 @@
+{
+  "artists": {
+    "bad bunny": {
+      "genre": "urbano",
+      "subgenre": "trap latino",
+      "moods": ["energético", "fiesta", "agresivo", "romántico"]
+    },
+    "j balvin": {
+      "genre": "urbano",
+      "subgenre": "reggaeton",
+      "moods": ["energético", "fiesta", "alegre"]
+    },
+    "maluma": {
+      "genre": "urbano",
+      "subgenre": "reggaeton",
+      "moods": ["romántico", "sensual", "fiesta"]
+    },
+    "ozuna": {
+      "genre": "urbano",
+      "subgenre": "reggaeton",
+      "moods": ["romántico", "energético", "fiesta"]
+    },
+    "daddy yankee": {
+      "genre": "urbano",
+      "subgenre": "reggaeton",
+      "moods": ["energético", "fiesta", "agresivo"]
+    },
+    "don omar": {
+      "genre": "urbano",
+      "subgenre": "reggaeton",
+      "moods": ["energético", "fiesta", "agresivo"]
+    },
+    "anuel aa": {
+      "genre": "urbano",
+      "subgenre": "trap latino",
+      "moods": ["agresivo", "energético", "romántico"]
+    },
+    "karol g": {
+      "genre": "urbano",
+      "subgenre": "reggaeton",
+      "moods": ["energético", "fiesta", "sensual"]
+    },
+    "nicky jam": {
+      "genre": "urbano",
+      "subgenre": "reggaeton",
+      "moods": ["romántico", "fiesta", "energético"]
+    },
+    "rauw alejandro": {
+      "genre": "urbano",
+      "subgenre": "reggaeton",
+      "moods": ["romántico", "sensual", "energético"]
+    },
+    "jhay cortez": {
+      "genre": "urbano",
+      "subgenre": "trap latino",
+      "moods": ["romántico", "melancólico", "energético"]
+    },
+    "myke towers": {
+      "genre": "urbano",
+      "subgenre": "trap latino",
+      "moods": ["agresivo", "energético", "romántico"]
+    },
+    "sech": {
+      "genre": "urbano",
+      "subgenre": "reggaeton",
+      "moods": ["romántico", "alegre", "energético"]
+    },
+    "farruko": {
+      "genre": "urbano",
+      "subgenre": "reggaeton",
+      "moods": ["romántico", "fiesta", "energético"]
+    },
+    "arcangel": {
+      "genre": "urbano",
+      "subgenre": "reggaeton",
+      "moods": ["agresivo", "energético", "fiesta"]
+    },
+    "wisin": {
+      "genre": "urbano",
+      "subgenre": "reggaeton",
+      "moods": ["energético", "fiesta", "romántico"]
+    },
+    "yandel": {
+      "genre": "urbano",
+      "subgenre": "reggaeton",
+      "moods": ["romántico", "energético", "fiesta"]
+    },
+    "zion y lennox": {
+      "genre": "urbano",
+      "subgenre": "reggaeton",
+      "moods": ["romántico", "sensual", "fiesta"]
+    },
+    "chencho corleone": {
+      "genre": "urbano",
+      "subgenre": "trap latino",
+      "moods": ["romántico", "melancólico"]
+    },
+    "mora": {
+      "genre": "urbano",
+      "subgenre": "trap latino",
+      "moods": ["romántico", "tranquilo", "melancólico"]
+    },
+    "micro tdh": {
+      "genre": "urbano",
+      "subgenre": "trap latino",
+      "moods": ["melancólico", "romántico", "agresivo"]
+    },
+    "lasso": {
+      "genre": "pop_latino",
+      "subgenre": "balada",
+      "moods": ["romántico", "melancólico", "tranquilo"]
+    },
+    "nacho": {
+      "genre": "pop_latino",
+      "subgenre": "balada",
+      "moods": ["romántico", "alegre", "melancólico"]
+    },
+    "diomedes diaz": {
+      "genre": "vallenato",
+      "subgenre": "vallenato clásico",
+      "moods": ["nostálgico", "festivo", "romántico"]
+    },
+    "carlos vives": {
+      "genre": "vallenato",
+      "subgenre": "vallenato moderno",
+      "moods": ["alegre", "festivo", "romántico"]
+    },
+    "silvestre dangond": {
+      "genre": "vallenato",
+      "subgenre": "vallenato moderno",
+      "moods": ["festivo", "romántico", "alegre"]
+    },
+    "jorge celedon": {
+      "genre": "vallenato",
+      "subgenre": "vallenato clásico",
+      "moods": ["romántico", "nostálgico", "festivo"]
+    },
+    "jean carlos centeno": {
+      "genre": "vallenato",
+      "subgenre": "vallenato moderno",
+      "moods": ["romántico", "festivo", "melancólico"]
+    },
+    "binomio de oro": {
+      "genre": "vallenato",
+      "subgenre": "vallenato clásico",
+      "moods": ["nostálgico", "romántico", "festivo"]
+    },
+    "kaleth morales": {
+      "genre": "vallenato",
+      "subgenre": "vallenato moderno",
+      "moods": ["romántico", "melancólico", "festivo"]
+    },
+    "pipe calderon": {
+      "genre": "vallenato",
+      "subgenre": "vallenato moderno",
+      "moods": ["festivo", "romántico", "alegre"]
+    },
+    "marc anthony": {
+      "genre": "tropical",
+      "subgenre": "salsa",
+      "moods": ["romántico", "melancólico", "energético"]
+    },
+    "oscar d leon": {
+      "genre": "tropical",
+      "subgenre": "salsa",
+      "moods": ["alegre", "festivo", "romántico"]
+    },
+    "ruben blades": {
+      "genre": "tropical",
+      "subgenre": "salsa",
+      "moods": ["nostálgico", "festivo", "romántico"]
+    },
+    "celia cruz": {
+      "genre": "tropical",
+      "subgenre": "salsa",
+      "moods": ["alegre", "festivo", "energético"]
+    },
+    "hector lavoe": {
+      "genre": "tropical",
+      "subgenre": "salsa",
+      "moods": ["nostálgico", "melancólico", "festivo"]
+    },
+    "willie colon": {
+      "genre": "tropical",
+      "subgenre": "salsa",
+      "moods": ["nostálgico", "festivo", "romántico"]
+    },
+    "romeo santos": {
+      "genre": "tropical",
+      "subgenre": "bachata",
+      "moods": ["romántico", "sensual", "melancólico"]
+    },
+    "prince royce": {
+      "genre": "tropical",
+      "subgenre": "bachata",
+      "moods": ["romántico", "tranquilo", "melancólico"]
+    },
+    "aventura": {
+      "genre": "tropical",
+      "subgenre": "bachata",
+      "moods": ["romántico", "melancólico", "sensual"]
+    },
+    "juan luis guerra": {
+      "genre": "tropical",
+      "subgenre": "merengue",
+      "moods": ["alegre", "festivo", "romántico"]
+    },
+    "grupo niche": {
+      "genre": "tropical",
+      "subgenre": "salsa",
+      "moods": ["festivo", "romántico", "alegre"]
+    },
+    "chichi peralta": {
+      "genre": "tropical",
+      "subgenre": "merengue",
+      "moods": ["alegre", "festivo", "romántico"]
+    },
+    "son by four": {
+      "genre": "tropical",
+      "subgenre": "balada tropical",
+      "moods": ["romántico", "melancólico", "tranquilo"]
+    },
+    "shakira": {
+      "genre": "pop_latino",
+      "subgenre": "pop",
+      "moods": ["energético", "alegre", "romántico"]
+    },
+    "enrique iglesias": {
+      "genre": "pop_latino",
+      "subgenre": "balada",
+      "moods": ["romántico", "energético", "alegre"]
+    },
+    "ricky martin": {
+      "genre": "pop_latino",
+      "subgenre": "pop",
+      "moods": ["energético", "fiesta", "romántico"]
+    },
+    "luis fonsi": {
+      "genre": "pop_latino",
+      "subgenre": "pop",
+      "moods": ["romántico", "alegre", "energético"]
+    },
+    "alejandro sanz": {
+      "genre": "pop_latino",
+      "subgenre": "balada",
+      "moods": ["romántico", "melancólico", "tranquilo"]
+    },
+    "juanes": {
+      "genre": "pop_latino",
+      "subgenre": "rock pop",
+      "moods": ["romántico", "melancólico", "energético"]
+    },
+    "camilo": {
+      "genre": "pop_latino",
+      "subgenre": "pop",
+      "moods": ["romántico", "alegre", "tranquilo"]
+    },
+    "sebastian yatra": {
+      "genre": "pop_latino",
+      "subgenre": "pop",
+      "moods": ["romántico", "melancólico", "alegre"]
+    },
+    "pablo alboran": {
+      "genre": "pop_latino",
+      "subgenre": "balada",
+      "moods": ["romántico", "melancólico", "tranquilo"]
+    },
+    "carlos rivera": {
+      "genre": "pop_latino",
+      "subgenre": "balada",
+      "moods": ["romántico", "melancólico", "tranquilo"]
+    },
+    "mau y ricky": {
+      "genre": "pop_latino",
+      "subgenre": "pop",
+      "moods": ["romántico", "alegre", "energético"]
+    },
+    "reik": {
+      "genre": "pop_latino",
+      "subgenre": "balada",
+      "moods": ["romántico", "melancólico", "tranquilo"]
+    },
+    "morat": {
+      "genre": "pop_latino",
+      "subgenre": "pop rock",
+      "moods": ["romántico", "melancólico", "alegre"]
+    },
+    "na dia": {
+      "genre": "pop_latino",
+      "subgenre": "pop",
+      "moods": ["romántico", "tranquilo", "melancólico"]
+    },
+    "greeicy": {
+      "genre": "pop_latino",
+      "subgenre": "pop",
+      "moods": ["alegre", "energético", "romántico"]
+    },
+    "mana": {
+      "genre": "rock_espanol",
+      "subgenre": "rock",
+      "moods": ["romántico", "energético", "melancólico"]
+    },
+    "soda stereo": {
+      "genre": "rock_espanol",
+      "subgenre": "rock",
+      "moods": ["nostálgico", "energético", "melancólico"]
+    },
+    "gustavo cerati": {
+      "genre": "rock_espanol",
+      "subgenre": "rock alternativo",
+      "moods": ["melancólico", "tranquilo", "nostálgico"]
+    },
+    "los bunkers": {
+      "genre": "rock_espanol",
+      "subgenre": "rock",
+      "moods": ["melancólico", "nostálgico", "romántico"]
+    },
+    "cafe tacvba": {
+      "genre": "rock_espanol",
+      "subgenre": "rock alternativo",
+      "moods": ["energético", "alegre", "nostálgico"]
+    },
+    "zoe": {
+      "genre": "rock_espanol",
+      "subgenre": "rock alternativo",
+      "moods": ["melancólico", "tranquilo", "nostálgico"]
+    },
+    "andres calamaro": {
+      "genre": "rock_espanol",
+      "subgenre": "rock",
+      "moods": ["nostálgico", "melancólico", "romántico"]
+    },
+    "los fabulosos cadillacs": {
+      "genre": "rock_espanol",
+      "subgenre": "ska rock",
+      "moods": ["festivo", "energético", "nostálgico"]
+    },
+    "banda ms": {
+      "genre": "regional_mexicano",
+      "subgenre": "banda",
+      "moods": ["festivo", "romántico", "melancólico"]
+    },
+    "los tigres del norte": {
+      "genre": "regional_mexicano",
+      "subgenre": "norteño",
+      "moods": ["nostálgico", "festivo", "romántico"]
+    },
+    "grupo firme": {
+      "genre": "regional_mexicano",
+      "subgenre": "banda",
+      "moods": ["festivo", "alegre", "romántico"]
+    },
+    "christian nodal": {
+      "genre": "regional_mexicano",
+      "subgenre": "regional pop",
+      "moods": ["romántico", "melancólico", "festivo"]
+    },
+    "calibre 50": {
+      "genre": "regional_mexicano",
+      "subgenre": "norteño",
+      "moods": ["romántico", "festivo", "melancólico"]
+    },
+    "los yonics": {
+      "genre": "regional_mexicano",
+      "subgenre": "grupero",
+      "moods": ["romántico", "nostálgico", "melancólico"]
+    },
+    "taylor swift": {
+      "genre": "pop",
+      "subgenre": "pop",
+      "moods": ["romántico", "melancólico", "energético"]
+    },
+    "ed sheeran": {
+      "genre": "pop",
+      "subgenre": "pop",
+      "moods": ["romántico", "tranquilo", "alegre"]
+    },
+    "adele": {
+      "genre": "pop",
+      "subgenre": "balada",
+      "moods": ["melancólico", "romántico", "tranquilo"]
+    },
+    "bruno mars": {
+      "genre": "pop",
+      "subgenre": "r_and_b pop",
+      "moods": ["alegre", "romántico", "energético"]
+    },
+    "justin bieber": {
+      "genre": "pop",
+      "subgenre": "pop",
+      "moods": ["romántico", "alegre", "energético"]
+    },
+    "ariana grande": {
+      "genre": "pop",
+      "subgenre": "pop",
+      "moods": ["energético", "alegre", "romántico"]
+    },
+    "dua lipa": {
+      "genre": "pop",
+      "subgenre": "pop dance",
+      "moods": ["energético", "fiesta", "alegre"]
+    },
+    "harry styles": {
+      "genre": "pop",
+      "subgenre": "pop rock",
+      "moods": ["alegre", "romántico", "melancólico"]
+    },
+    "billie eilish": {
+      "genre": "pop",
+      "subgenre": "pop alternativo",
+      "moods": ["melancólico", "tranquilo", "agresivo"]
+    },
+    "the weeknd": {
+      "genre": "r_and_b",
+      "subgenre": "r_and_b",
+      "moods": ["romántico", "melancólico", "sensual"]
+    },
+    "drake": {
+      "genre": "hip_hop",
+      "subgenre": "rap",
+      "moods": ["melancólico", "agresivo", "romántico"]
+    },
+    "post malone": {
+      "genre": "hip_hop",
+      "subgenre": "rap pop",
+      "moods": ["melancólico", "tranquilo", "agresivo"]
+    },
+    "kendrick lamar": {
+      "genre": "hip_hop",
+      "subgenre": "rap",
+      "moods": ["agresivo", "melancólico", "energético"]
+    },
+    "sza": {
+      "genre": "r_and_b",
+      "subgenre": "r_and_b",
+      "moods": ["romántico", "melancólico", "tranquilo"]
+    },
+    "beyonce": {
+      "genre": "r_and_b",
+      "subgenre": "pop r_and_b",
+      "moods": ["energético", "fiesta", "romántico"]
+    },
+    "rihanna": {
+      "genre": "pop",
+      "subgenre": "pop r_and_b",
+      "moods": ["energético", "sensual", "fiesta"]
+    },
+    "simon diaz": {
+      "genre": "llanera",
+      "subgenre": "joropo",
+      "moods": ["nostálgico", "tranquilo", "romántico"]
+    },
+    "juan vicente torrealba": {
+      "genre": "llanera",
+      "subgenre": "joropo",
+      "moods": ["nostálgico", "tranquilo", "festivo"]
+    },
+    "david guetta": {
+      "genre": "electronica",
+      "subgenre": "edm",
+      "moods": ["energético", "fiesta", "alegre"]
+    },
+    "calvin harris": {
+      "genre": "electronica",
+      "subgenre": "edm",
+      "moods": ["energético", "fiesta", "alegre"]
+    },
+    "marshmello": {
+      "genre": "electronica",
+      "subgenre": "edm",
+      "moods": ["energético", "fiesta", "alegre"]
+    }
+  }
+}

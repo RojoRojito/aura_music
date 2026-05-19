@@ -1,22 +1,29 @@
 import 'package:flutter/foundation.dart';
 import '../../data/models/song.dart';
 import '../../data/models/song_stats.dart';
+import '../../data/models/user_profile.dart';
 import '../../data/repositories/stats_repository.dart';
+import '../../data/repositories/song_features_repository.dart';
 import '../../services/media_scanner.dart';
 import 'engagement_scorer.dart';
+import 'profile_builder.dart';
+import 'content_scorer.dart';
 
 class RecommendationEngine extends ChangeNotifier {
   final StatsRepository statsRepository;
+  final SongFeaturesRepository featuresRepository;
 
-  RecommendationEngine(this.statsRepository);
+  RecommendationEngine(this.statsRepository, this.featuresRepository);
 
   List<SongStats> _allStats = [];
   List<SongStats> _topPicks = [];
   List<SongStats> _mostPlayed = [];
+  UserProfile? _userProfile;
   bool _isLoading = false;
 
   List<SongStats> get topPicks => _topPicks;
   List<SongStats> get mostPlayed => _mostPlayed;
+  UserProfile? get userProfile => _userProfile;
   bool get isLoading => _isLoading;
   bool get hasData => _topPicks.isNotEmpty || _mostPlayed.isNotEmpty;
 
@@ -26,11 +33,31 @@ class RecommendationEngine extends ChangeNotifier {
 
     _allStats = await statsRepository.getAllStats();
 
-    final scored = _allStats
-        .map((s) => s.copyWith(
-            score: EngagementScorer.compute(s),
-            engagementScore: EngagementScorer.compute(s)))
-        .toList();
+    await _buildProfile();
+
+    final featuresMap = await featuresRepository.getAllFeaturesMap();
+
+    final scored = _allStats.map((s) {
+      final engagementScore = EngagementScorer.compute(s);
+
+      double contentScore = 0.0;
+      final features = featuresMap[s.songId];
+      if (features != null && features.isEnriched && _userProfile != null) {
+        contentScore = ContentScorer.computeFull(
+          features: features,
+          artistName: s.artist,
+          profile: _userProfile!,
+        );
+      }
+
+      final combinedScore =
+          (engagementScore * 0.60) + (contentScore * 0.40);
+
+      return s.copyWith(
+        score: combinedScore,
+        engagementScore: engagementScore,
+      );
+    }).toList();
 
     _topPicks = scored
         .where((s) => s.playCount > 0 || s.isFavorite)
@@ -46,6 +73,18 @@ class RecommendationEngine extends ChangeNotifier {
 
     _isLoading = false;
     notifyListeners();
+  }
+
+  Future<void> _buildProfile() async {
+    try {
+      _userProfile = await ProfileBuilder.instance.build(
+        allStats: _allStats,
+        featuresRepo: featuresRepository,
+      );
+    } catch (e) {
+      debugPrint('[RecommendationEngine] Failed to build profile: $e');
+      _userProfile = null;
+    }
   }
 
   Future<void> refresh() => compute();

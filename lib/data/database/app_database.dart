@@ -1,7 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
-const int _currentVersion = 4;
+const int _currentVersion = 5;
 
 typedef Migration = Future<void> Function(Database db, int from, int to);
 
@@ -18,6 +18,18 @@ final Map<int, Migration> _migrations = {
         'ALTER TABLE song_stats ADD COLUMN repeat_count INTEGER DEFAULT 0');
     await db.execute(
         'ALTER TABLE song_stats ADD COLUMN playlist_add_count INTEGER DEFAULT 0');
+  },
+  5: (db, from, to) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS song_features (
+        song_id INTEGER PRIMARY KEY,
+        normalized_genre TEXT,
+        sub_genre TEXT,
+        mood_tags TEXT,
+        source TEXT,
+        enriched_at TEXT
+      )
+    ''');
   },
 };
 
@@ -73,6 +85,13 @@ class AppDatabase {
          last_played TEXT,
          repeat_count INTEGER NOT NULL DEFAULT 0,
          playlist_add_count INTEGER NOT NULL DEFAULT 0)''',
+    '''CREATE TABLE IF NOT EXISTS song_features (
+         song_id INTEGER PRIMARY KEY,
+         normalized_genre TEXT,
+         sub_genre TEXT,
+         mood_tags TEXT,
+         source TEXT,
+         enriched_at TEXT)''',
   ];
 
   Future<Database> get database async {
