@@ -14,14 +14,16 @@ class NativeEqualizerService {
 
   /// Initialize the DSP engine with an audio session ID.
   /// Called when just_audio provides a valid androidAudioSessionId.
-  Future<void> initSession(int sessionId) async {
+  /// Returns a map with 'success' boolean indicating whether init succeeded.
+  Future<dynamic> initSession(int sessionId) async {
     try {
       debugPrint('[NativeEQ] initSession: sessionId=$sessionId');
-      await _channel.invokeMethod("initSession", {"sessionId": sessionId});
-      debugPrint('[NativeEQ] initSession OK');
+      final result = await _channel.invokeMethod("initSession", {"sessionId": sessionId});
+      debugPrint('[NativeEQ] initSession OK: $result');
+      return result;
     } catch (e) {
       debugPrint('[NativeEQ] initSession ERROR: $e');
-      rethrow;
+      return {'success': false, 'error': e.toString()};
     }
   }
 
@@ -81,11 +83,23 @@ class NativeEqualizerService {
   }
 
   /// Set bass boost strength (0-15 dB).
+  /// In DynamicsProcessing mode, this is applied as gain on the first EQ band.
+  /// In legacy mode, this uses the Android BassBoost effect.
   Future<void> setBassBoost(double gainDb) async {
     try {
       await _channel.invokeMethod("setBassBoost", {"gainDb": gainDb});
     } catch (e) {
       debugPrint('[NativeEQ] setBassBoost ERROR: $e');
+    }
+  }
+
+  /// Set bass target frequency (30-120 Hz).
+  /// In DynamicsProcessing mode, this sets the cutoff frequency of the first EQ band.
+  Future<void> setBassFrequency(int hz) async {
+    try {
+      await _channel.invokeMethod("setBassFrequency", {"hz": hz});
+    } catch (e) {
+      debugPrint('[NativeEQ] setBassFrequency ERROR: $e');
     }
   }
 
@@ -143,15 +157,6 @@ class NativeEqualizerService {
       });
     } catch (e) {
       debugPrint('[NativeEQ] setLimiterParams ERROR: $e');
-    }
-  }
-
-  /// Set bass frequency (30-120 Hz).
-  Future<void> setBassFrequency(int hz) async {
-    try {
-      await _channel.invokeMethod("setBassFrequency", {"hz": hz});
-    } catch (e) {
-      debugPrint('[NativeEQ] setBassFrequency ERROR: $e');
     }
   }
 

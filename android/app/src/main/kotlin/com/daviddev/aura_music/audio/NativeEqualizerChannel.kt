@@ -12,6 +12,7 @@ import io.flutter.plugin.common.MethodChannel
  * - Receive commands from Flutter via MethodChannel
  * - Forward commands to EqualizerEngine and EffectsController
  * - Persist DSP state to DspPrefs on every change
+ * - Store pending config in AudioSessionManager for session recovery
  * - Return results/errors to Flutter
  * - NO DSP logic — pure delegation layer
  *
@@ -70,8 +71,8 @@ class NativeEqualizerChannel(
             return
         }
 
-        sessionManager.onNewSessionId(sessionId)
-        result.success(null)
+        val success = sessionManager.onNewSessionId(sessionId)
+        result.success(mapOf("success" to success))
     }
 
     private fun handleSetEnabled(call: MethodCall, result: MethodChannel.Result) {
@@ -80,6 +81,7 @@ class NativeEqualizerChannel(
         effectsController.setEqEnabled(enabled)
         dspPrefs.setEqEnabled(enabled)
         dspPrefs.setRestoreAfterBoot(enabled)
+        updatePendingConfig()
         result.success(null)
     }
 
@@ -107,6 +109,7 @@ class NativeEqualizerChannel(
         }
         currentGains[bandIndex] = gainDb
         dspPrefs.setBandGains(currentGains)
+        updatePendingConfig()
         result.success(null)
     }
 
@@ -116,6 +119,7 @@ class NativeEqualizerChannel(
         Log.d(TAG, ">> setAllBandGains: ${gains.size} bands")
         engine.setAllBandGains(gains)
         dspPrefs.setBandGains(gains)
+        updatePendingConfig()
         result.success(null)
     }
 
@@ -124,6 +128,7 @@ class NativeEqualizerChannel(
         Log.d(TAG, ">> setBassBoost: gain=$gainDb dB")
         engine.setBassBoost(gainDb)
         dspPrefs.setBassBoost(gainDb)
+        updatePendingConfig()
         result.success(null)
     }
 
@@ -132,6 +137,7 @@ class NativeEqualizerChannel(
         Log.d(TAG, ">> setVirtualizer: strength=$strength")
         engine.setVirtualizer(strength)
         dspPrefs.setVirtualizer(strength)
+        updatePendingConfig()
         result.success(null)
     }
 
@@ -140,6 +146,7 @@ class NativeEqualizerChannel(
         Log.d(TAG, ">> setLoudness: gain=$gainDb dB")
         engine.setLoudness(gainDb)
         dspPrefs.setLoudness(gainDb)
+        updatePendingConfig()
         result.success(null)
     }
 
@@ -148,6 +155,7 @@ class NativeEqualizerChannel(
         Log.d(TAG, ">> setLoudnessEnabled: $enabled")
         engine.setLoudnessEnabled(enabled)
         dspPrefs.setLoudnessEnabled(enabled)
+        updatePendingConfig()
         result.success(null)
     }
 
@@ -156,6 +164,7 @@ class NativeEqualizerChannel(
         Log.d(TAG, ">> setLimiterEnabled: $enabled")
         engine.setLimiterEnabled(enabled)
         dspPrefs.setLimiterEnabled(enabled)
+        updatePendingConfig()
         result.success(null)
     }
 
@@ -173,6 +182,7 @@ class NativeEqualizerChannel(
         dspPrefs.setLimiterAttack(attack)
         dspPrefs.setLimiterRelease(release)
         dspPrefs.setLimiterPostGain(postGain)
+        updatePendingConfig()
         result.success(null)
     }
 
@@ -181,6 +191,7 @@ class NativeEqualizerChannel(
         Log.d(TAG, ">> setBassFrequency: $hz Hz")
         engine.setBassFrequency(hz)
         dspPrefs.setBassFrequency(hz)
+        updatePendingConfig()
         result.success(null)
     }
 
@@ -247,5 +258,28 @@ class NativeEqualizerChannel(
         Log.d(TAG, ">> setRestoreAfterBoot: $enabled")
         dspPrefs.setRestoreAfterBoot(enabled)
         result.success(null)
+    }
+
+    /**
+     * Update the pending configuration in AudioSessionManager.
+     * Called after every DSP state change so config survives session transitions.
+     */
+    private fun updatePendingConfig() {
+        val config = AudioSessionManager.PendingConfig(
+            enabled = effectsController.isEqEnabled(),
+            bandGains = dspPrefs.getBandGains(),
+            bassBoost = dspPrefs.getBassBoost(),
+            bassFrequencyHz = dspPrefs.getBassFrequency(),
+            virtualizer = dspPrefs.getVirtualizer(),
+            loudness = dspPrefs.getLoudness(),
+            loudnessEnabled = dspPrefs.isLoudnessEnabled(),
+            limiterEnabled = dspPrefs.isLimiterEnabled(),
+            limiterThreshold = dspPrefs.getLimiterThreshold(),
+            limiterRatio = dspPrefs.getLimiterRatio(),
+            limiterAttack = dspPrefs.getLimiterAttack(),
+            limiterRelease = dspPrefs.getLimiterRelease(),
+            limiterPostGain = dspPrefs.getLimiterPostGain()
+        )
+        sessionManager.storePendingConfig(config)
     }
 }

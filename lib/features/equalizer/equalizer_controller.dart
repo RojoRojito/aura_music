@@ -48,6 +48,7 @@ class EqualizerController extends ChangeNotifier {
 
   /// Initialize the DSP engine with an audio session ID.
   /// Called from main.dart when just_audio provides androidAudioSessionId.
+  /// Safe to call multiple times — handles session changes gracefully.
   Future<void> initSession(int sessionId) async {
     await _state.initSession(sessionId);
     notifyListeners();
@@ -72,9 +73,7 @@ class EqualizerController extends ChangeNotifier {
 
     // Map to native bands and apply
     final nativeGains = _state.mapToNativeBands(newBands);
-    for (var i = 0; i < _state.nativeBandCount; i++) {
-      await _native.setBandGain(i, nativeGains[i]);
-    }
+    await _native.setAllBandGains(nativeGains);
 
     await _state.saveGlobal();
     notifyListeners();
@@ -108,6 +107,8 @@ class EqualizerController extends ChangeNotifier {
   // ─── Bass Boost ─────────────────────────────────────────────
 
   /// Set bass boost strength (0-15 dB).
+  /// In DynamicsProcessing mode, this affects the first EQ band's gain.
+  /// In legacy mode, this uses the Android BassBoost effect.
   Future<void> setBassBoost(double gainDb) async {
     if (_state.currentConfig == null) {
       _state.updateConfig(EqConfig.flat());
@@ -116,11 +117,15 @@ class EqualizerController extends ChangeNotifier {
     _state.updateConfigField(bassBoost: clampedGain);
 
     await _native.setBassBoost(clampedGain);
+    await _native.setBassFrequency(_state.currentConfig!.bassFrequencyHz);
+
     await _state.saveGlobal();
     notifyListeners();
   }
 
   /// Set bass target frequency (30, 60, 80, or 100 Hz).
+  /// In DynamicsProcessing mode, this sets the cutoff frequency of the first EQ band.
+  /// In legacy mode, this is stored but BassBoost doesn't support frequency control.
   Future<void> setBassFrequency(int hz) async {
     if (_state.currentConfig == null) {
       _state.updateConfig(EqConfig.flat());
@@ -129,32 +134,8 @@ class EqualizerController extends ChangeNotifier {
 
     await _native.setBassFrequency(hz);
 
-    // Apply extra EQ boost at the selected bass frequency
-    if (hz != 80 && _state.currentConfig!.bassBoost > 0) {
-      await _applyBassFrequencyBoost(hz, _state.currentConfig!.bassBoost);
-    }
-
     await _state.saveGlobal();
     notifyListeners();
-  }
-
-  /// Apply an EQ boost at the selected bass frequency.
-  Future<void> _applyBassFrequencyBoost(int hz, double boostAmount) async {
-    final nativeGains = _state.mapToNativeBands(_state.currentConfig!.bandGains);
-
-    // Find closest native band
-    var bestIdx = 0;
-    var bestDiff = 999999.0;
-    for (var i = 0; i < _state.nativeBandFrequencies.length; i++) {
-      final diff = (hz - _state.nativeBandFrequencies[i]).abs().toDouble();
-      if (diff < bestDiff) {
-        bestDiff = diff;
-        bestIdx = i;
-      }
-    }
-
-    nativeGains[bestIdx] = (nativeGains[bestIdx] + boostAmount * 0.3).clamp(-12.0, 12.0);
-    await _native.setBandGain(bestIdx, nativeGains[bestIdx]);
   }
 
   // ─── Virtualizer ────────────────────────────────────────────

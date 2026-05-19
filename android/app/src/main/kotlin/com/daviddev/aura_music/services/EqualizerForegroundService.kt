@@ -26,6 +26,7 @@ import com.daviddev.aura_music.audio.EffectsController
  * - Survives activity recreation, app backgrounding, configuration changes
  * - NO headless FlutterEngine — communication via broadcast intents
  * - Restores DSP state from DspPrefs on creation
+ * - Stores pending config for automatic session recovery
  * - Stopped explicitly by Flutter or when audio session ends
  *
  * Lifecycle:
@@ -101,7 +102,7 @@ class EqualizerForegroundService : Service() {
 
         sessionManager!!.bindEngine(engine!!)
 
-        // Restore DSP state from persistence
+        // Restore DSP state from persistence and store as pending config
         restoreDspState()
 
         Log.i(TAG, "onCreate: DSP engine initialized, mode=${engine!!.getEngineMode()}")
@@ -155,12 +156,32 @@ class EqualizerForegroundService : Service() {
     }
 
     /**
-     * Restore DSP state from DspPrefs.
+     * Restore DSP state from DspPrefs and store as pending config.
      * Called after engine initialization to apply saved configuration.
+     * The pending config ensures automatic recovery on session changes.
      */
     private fun restoreDspState() {
         val config = dspPrefs.loadConfig()
         Log.i(TAG, "restoreDspState: preset=${config.presetName}, bands=${config.bandGains.size}, bass=${config.bassBoost}dB")
+
+        // Store as pending config for automatic session recovery
+        sessionManager?.storePendingConfig(
+            AudioSessionManager.PendingConfig(
+                enabled = config.eqEnabled,
+                bandGains = config.bandGains,
+                bassBoost = config.bassBoost,
+                bassFrequencyHz = config.bassFrequencyHz,
+                virtualizer = config.virtualizer,
+                loudness = config.loudness,
+                loudnessEnabled = config.loudnessEnabled,
+                limiterEnabled = config.limiterEnabled,
+                limiterThreshold = config.limiterThreshold,
+                limiterRatio = config.limiterRatio,
+                limiterAttack = config.limiterAttack,
+                limiterRelease = config.limiterRelease,
+                limiterPostGain = config.limiterPostGain
+            )
+        )
 
         // Apply EQ enabled state
         effectsController?.setEqEnabled(config.eqEnabled)
@@ -190,6 +211,8 @@ class EqualizerForegroundService : Service() {
             config.limiterRelease,
             config.limiterPostGain
         )
+
+        Log.i(TAG, "restoreDspState: DSP state restored and stored as pending config")
     }
 
     private fun createNotificationChannel() {

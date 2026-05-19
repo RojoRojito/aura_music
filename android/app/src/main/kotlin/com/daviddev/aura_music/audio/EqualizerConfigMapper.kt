@@ -1,6 +1,7 @@
 package com.daviddev.aura_music.audio
 
-import kotlin.math.ln
+import kotlin.math.log10
+import kotlin.math.pow
 
 /**
  * EqualizerConfigMapper — Converts Flutter/UI values into DSP configuration.
@@ -44,6 +45,7 @@ object EqualizerConfigMapper {
     /**
      * Preset EQ curves as frequency-to-gain maps.
      * Keys are frequencies in Hz, values are gain in dB.
+     * These are interpolated to the UI's 12 bands at runtime.
      */
     val presetCurves: Map<String, Map<Int, Double>> = mapOf(
         "Plano" to mapOf(
@@ -77,6 +79,22 @@ object EqualizerConfigMapper {
         "Latino" to mapOf(
             31 to 3.0, 62 to 2.0, 125 to 0.0, 250 to -1.0, 500 to -1.0,
             1000 to 0.0, 2000 to 1.0, 4000 to 2.0, 8000 to 3.0, 16000 to 2.0
+        ),
+        "R&B" to mapOf(
+            31 to 3.0, 62 to 3.0, 125 to 1.0, 250 to 0.0, 500 to 1.0,
+            1000 to 2.0, 2000 to 2.0, 4000 to 1.0, 8000 to 0.0, 16000 to 0.0
+        ),
+        "Bass Boost" to mapOf(
+            31 to 6.0, 62 to 5.0, 125 to 3.0, 250 to 1.0, 500 to 0.0,
+            1000 to 0.0, 2000 to 0.0, 4000 to 0.0, 8000 to 0.0, 16000 to 0.0
+        ),
+        "Treble Boost" to mapOf(
+            31 to 0.0, 62 to 0.0, 125 to 0.0, 250 to 0.0, 500 to 0.0,
+            1000 to 0.0, 2000 to 1.0, 4000 to 3.0, 8000 to 5.0, 16000 to 6.0
+        ),
+        "Vocal" to mapOf(
+            31 to -2.0, 62 to -1.0, 125 to 0.0, 250 to 1.0, 500 to 3.0,
+            1000 to 4.0, 2000 to 4.0, 4000 to 3.0, 8000 to 1.0, 16000 to 0.0
         )
     )
 
@@ -87,9 +105,9 @@ object EqualizerConfigMapper {
      * Used to determine which UI bands to display for 5/7/10 band modes.
      */
     val bandSelections: Map<Int, List<Int>> = mapOf(
-        5 to listOf(0, 2, 5, 8, 11),
-        7 to listOf(0, 2, 4, 6, 8, 10, 11),
-        10 to listOf(0, 1, 2, 4, 5, 6, 7, 9, 10, 11)
+        5 to listOf(0, 2, 5, 8, 11),       // 31, 125, 1000, 8000, 20000
+        7 to listOf(0, 2, 4, 6, 8, 10, 11), // 31, 125, 500, 2000, 8000, 16000, 20000
+        10 to listOf(0, 1, 2, 4, 5, 6, 7, 9, 10, 11) // omit 250, 4000
     )
 
     // ─── Mapping Functions ────────────────────────────────────
@@ -106,6 +124,7 @@ object EqualizerConfigMapper {
         nativeFrequencies: List<Int>
     ): List<Double> {
         if (nativeFrequencies.isEmpty()) return emptyList()
+        if (uiGains.isEmpty()) return List(nativeFrequencies.size) { 0.0 }
 
         return nativeFrequencies.map { nativeFreq ->
             interpolateGain(nativeFreq.toDouble(), uiFrequencies, uiGains)
@@ -136,9 +155,9 @@ object EqualizerConfigMapper {
         // Find the bracketing frequencies and interpolate logarithmically
         for (i in 0 until freqs.size - 1) {
             if (freqs[i] <= targetFreq && freqs[i + 1] >= targetFreq) {
-                val logTarget = ln(targetFreq)
-                val logLow = ln(freqs[i].toDouble())
-                val logHigh = ln(freqs[i + 1].toDouble())
+                val logTarget = log10(targetFreq)
+                val logLow = log10(freqs[i].toDouble())
+                val logHigh = log10(freqs[i + 1].toDouble())
 
                 // Avoid division by zero (shouldn't happen with valid data)
                 val denominator = logHigh - logLow
@@ -149,11 +168,12 @@ object EqualizerConfigMapper {
             }
         }
 
-        return 0.0
+        return gains.last()
     }
 
     /**
      * Convert a preset name into a 12-band gain list.
+     * Uses logarithmic interpolation from the preset's frequency→gain map.
      *
      * @param presetName Name of the preset (e.g., "Rock", "Pop")
      * @return List of 12 gain values, or null if preset not found
@@ -210,5 +230,26 @@ object EqualizerConfigMapper {
      */
     fun getVisualBandIndices(visualBandCount: Int): List<Int> {
         return bandSelections[visualBandCount] ?: bandSelections[5]!!
+    }
+
+    /**
+     * Compute the total boost across all bands.
+     * Used for gain staging to prevent clipping.
+     */
+    fun computeTotalBoost(gains: List<Double>): Double {
+        return gains.filter { it > 0 }.sum()
+    }
+
+    /**
+     * Compute gain staging compensation.
+     * If total boost exceeds threshold, return a negative compensation value.
+     */
+    fun computeGainCompensation(gains: List<Double>, thresholdDb: Double = 6.0): Double {
+        val totalBoost = computeTotalBoost(gains)
+        return if (totalBoost > thresholdDb) {
+            -(totalBoost - thresholdDb)
+        } else {
+            0.0
+        }
     }
 }

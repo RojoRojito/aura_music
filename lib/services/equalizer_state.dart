@@ -10,7 +10,7 @@ import 'native_equalizer_service.dart';
 /// - Loading/saving global EQ config
 /// - Tracking current configuration
 /// - Band mapping between UI (12 bands) and native (device-dependent) bands
-/// - Preset application
+/// - Preset application with proper logarithmic interpolation
 /// - Persistence via EqRepository
 ///
 /// It does NOT communicate with native DSP directly.
@@ -24,6 +24,7 @@ class EqualizerState extends ChangeNotifier {
   final EqRepository _eqRepository;
   final NativeEqualizerService _nativeService;
 
+  // Standard 12-band UI frequencies (Hz) — matches EqualizerConfigMapper
   static const List<int> bandFrequencies = [
     31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 12000, 16000, 20000
   ];
@@ -34,6 +35,7 @@ class EqualizerState extends ChangeNotifier {
   List<int> _nativeBandFrequencies = [];
   bool _isAvailable = false;
   String _engineMode = "unavailable";
+  int _lastAppliedSessionId = -1;
 
   int get nativeBandCount => _nativeBandCount;
   List<int> get nativeBandFrequencies => _nativeBandFrequencies;
@@ -52,10 +54,23 @@ class EqualizerState extends ChangeNotifier {
 
   /// Initialize the session with a native audio session ID.
   /// Called when just_audio provides androidAudioSessionId.
+  /// This method is idempotent — safe to call on every session change.
   Future<void> initSession(int sessionId) async {
-    debugPrint('[EQState] initSession: sessionId=$sessionId');
+    debugPrint('[EQState] initSession: sessionId=$sessionId (last=$_lastAppliedSessionId)');
+
+    // Avoid redundant re-init for the same session
+    if (sessionId == _lastAppliedSessionId && _isAvailable) {
+      debugPrint('[EQState] initSession: same session, skipping');
+      return;
+    }
+
     try {
-      await _nativeService.initSession(sessionId);
+      final initResult = await _nativeService.initSession(sessionId);
+      final success = initResult is Map && initResult['success'] == true;
+
+      if (!success) {
+        debugPrint('[EQState] initSession: native init returned failure');
+      }
 
       // Fetch native band info
       _nativeBandCount = await _nativeService.getBandCount();
@@ -66,6 +81,7 @@ class EqualizerState extends ChangeNotifier {
       _engineMode = await _nativeService.getEngineMode();
 
       _isAvailable = true;
+      _lastAppliedSessionId = sessionId;
       debugPrint('[EQState] initSession OK: bands=$_nativeBandCount, mode=$_engineMode');
 
       // Reapply stored config if available
@@ -143,16 +159,20 @@ class EqualizerState extends ChangeNotifier {
   }
 
   /// Map 12 UI band gains to native device band gains.
+  /// Uses logarithmic interpolation to map between different band counts.
   List<double> mapToNativeBands(List<double> uiGains) {
-    final nativeGains = List<double>.filled(_nativeBandCount, 0.0);
+    if (_nativeBandFrequencies.isEmpty) return uiGains;
+
+    final nativeGains = <double>[];
     for (var nIdx = 0; nIdx < _nativeBandCount; nIdx++) {
       final nativeFreq = _nativeBandFrequencies[nIdx].toDouble();
-      nativeGains[nIdx] = _interpolateGain(nativeFreq, uiGains);
+      nativeGains.add(_interpolateGain(nativeFreq, uiGains));
     }
     return nativeGains;
   }
 
   /// Interpolate gain at a target frequency using logarithmic scaling.
+  /// This produces smooth EQ curves across different band counts.
   double _interpolateGain(double targetFreq, List<double> gains) {
     if (bandFrequencies.isEmpty || gains.isEmpty) return 0.0;
     if (targetFreq <= bandFrequencies.first) return gains.first;
@@ -160,17 +180,19 @@ class EqualizerState extends ChangeNotifier {
 
     for (var i = 0; i < bandFrequencies.length - 1; i++) {
       if (bandFrequencies[i] <= targetFreq && bandFrequencies[i + 1] >= targetFreq) {
-        final logTarget = _log(targetFreq);
-        final logLow = _log(bandFrequencies[i].toDouble());
-        final logHigh = _log(bandFrequencies[i + 1].toDouble());
-        final t = (logTarget - logLow) / (logHigh - logLow);
+        final logTarget = log(targetFreq);
+        final logLow = log(bandFrequencies[i].toDouble());
+        final logHigh = log(bandFrequencies[i + 1].toDouble());
+
+        final denominator = logHigh - logLow;
+        if (denominator == 0) return gains[i];
+
+        final t = (logTarget - logLow) / denominator;
         return gains[i] + t * (gains[i + 1] - gains[i]);
       }
     }
-    return 0.0;
+    return gains.last;
   }
-
-  double _log(double x) => log(x);
 
   /// Apply a full EQ configuration to the native DSP engine.
   Future<void> _applyFullConfig(EqConfig config) async {
@@ -178,14 +200,13 @@ class EqualizerState extends ChangeNotifier {
       debugPrint('[EQState] _applyFullConfig: enabled=${config.enabled}, nativeBands=$_nativeBandCount');
       await _nativeService.setEnabled(config.enabled);
 
-      // Map 12 UI bands to native bands
+      // Map 12 UI bands to native bands using logarithmic interpolation
       final nativeGains = mapToNativeBands(config.bandGains);
       debugPrint('[EQState] mapped gains: ui=${config.bandGains} → native=$nativeGains');
-      for (var i = 0; i < _nativeBandCount; i++) {
-        await _nativeService.setBandGain(i, nativeGains[i]);
-      }
+      await _nativeService.setAllBandGains(nativeGains);
 
       await _nativeService.setBassBoost(config.bassBoost);
+      await _nativeService.setBassFrequency(config.bassFrequencyHz);
       await _nativeService.setVirtualizer(config.virtualizer);
       await _nativeService.setLoudness(config.loudness);
       await _nativeService.setLoudnessEnabled(config.loudnessEnabled);
@@ -213,18 +234,28 @@ class EqualizerState extends ChangeNotifier {
   }
 
   /// Apply a preset curve to the current configuration.
+  /// Presets are defined as frequency→gain maps and interpolated to 12 bands.
   Future<void> applyPreset(String name) async {
-    if (_currentConfig == null) return;
-    final curve = EqConfig.presetCurves[name];
-    if (curve == null) return;
+    if (_currentConfig == null) {
+      _currentConfig = EqConfig.flat();
+    }
 
-    // Convert frequency→gain map to 12-band list via interpolation
+    final curve = EqConfig.presetCurves[name];
+    if (curve == null) {
+      debugPrint('[EQState] applyPreset: unknown preset "$name"');
+      return;
+    }
+
+    // Convert frequency→gain map to 12-band list via logarithmic interpolation
     final sortedFreqs = curve.keys.toList()..sort();
-    final sortedGains = sortedFreqs.map((f) => curve[f]!.toDouble()).toList();
+    final sortedGains = sortedFreqs.map((f) => curve[f]!).toList();
+
     final newBands = <double>[];
     for (final freq in bandFrequencies) {
       newBands.add(_interpolateGain(freq.toDouble(), sortedGains));
     }
+
+    debugPrint('[EQState] applyPreset: "$name" → $newBands');
 
     _currentConfig = _currentConfig!.copyWith(
       bandGains: newBands,

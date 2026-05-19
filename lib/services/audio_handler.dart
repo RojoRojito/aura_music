@@ -26,17 +26,19 @@ class AuraAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   List<Song> _queue = [];
   List<Song> _displayQueue = [];
   int _currentIndex = 0;
-  bool _sessionIdSent = false;
+  int _lastSessionId = -1;
   bool _isSkipping = false;
   bool _shuffleEnabled = false;
   List<int> _shuffleMap = [];
   final _errorController = StreamController<AudioError>.broadcast();
   final _queueChangeController = StreamController<void>.broadcast();
+  final _sessionChangeController = StreamController<int>.broadcast();
   void Function(int songId)? onSongChanged;
   void Function(int sessionId)? onAudioSessionId;
 
   Stream<AudioError> get errorStream => _errorController.stream;
   Stream<void> get onQueueChanged => _queueChangeController.stream;
+  Stream<int> get onSessionChanged => _sessionChangeController.stream;
 
   AuraAudioHandler() {
     debugPrint('[AudioHandler] Constructor called');
@@ -69,32 +71,25 @@ class AuraAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       ));
     });
 
-    _player.processingStateStream.listen((state) {
-      debugPrint('[AudioHandler] processingState=$state, _sessionIdSent=$_sessionIdSent');
-      if (state == ProcessingState.ready && !_sessionIdSent) {
-        _checkAudioSessionId();
+    // Listen to audio session ID changes — fires on every new session
+    _player.androidAudioSessionIdStream.listen((sessionId) {
+      debugPrint('[AudioHandler] androidAudioSessionIdStream: sessionId=$sessionId, last=$_lastSessionId');
+      if (sessionId != null && sessionId != 0) {
+        if (sessionId != _lastSessionId) {
+          _lastSessionId = sessionId;
+          debugPrint('[AudioHandler] NEW session: $sessionId, notifying DSP engine');
+          onAudioSessionId?.call(sessionId);
+          _sessionChangeController.add(sessionId);
+        } else {
+          debugPrint('[AudioHandler] Session unchanged: $sessionId');
+        }
       }
-      if (state == ProcessingState.completed && !_isSkipping) skipToNext();
     });
 
-    _checkAudioSessionId();
-  }
-
-  void _checkAudioSessionId() {
-    final sessionId = _player.androidAudioSessionId;
-    debugPrint('[AudioHandler] _checkAudioSessionId: sessionId=$sessionId, _sessionIdSent=$_sessionIdSent');
-    if (sessionId != null && sessionId != 0 && !_sessionIdSent) {
-      _sessionIdSent = true;
-      debugPrint('[AudioHandler] sessionId VALIDO=$sessionId, calling onAudioSessionId');
-      try {
-        onAudioSessionId?.call(sessionId);
-        debugPrint('[AudioHandler] onAudioSessionId callback executed OK');
-      } catch (e) {
-        debugPrint('[AudioHandler] onAudioSessionId callback ERROR: $e');
-      }
-    } else {
-      debugPrint('[AudioHandler] sessionId not ready yet, will retry after play');
-    }
+    _player.processingStateStream.listen((state) {
+      debugPrint('[AudioHandler] processingState=$state, lastSessionId=$_lastSessionId');
+      if (state == ProcessingState.completed && !_isSkipping) skipToNext();
+    });
   }
 
   Stream<PositionData> get positionDataStream =>
@@ -244,7 +239,6 @@ class AuraAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   Future<void> _loadCurrent() async {
     if (_queue.isEmpty) return;
     debugPrint('[AudioHandler] _loadCurrent: song=${_queue[_currentIndex].title}');
-    _sessionIdSent = false;
     final s = _queue[_currentIndex];
     mediaItem.add(MediaItem(
       id: s.uri,
@@ -259,9 +253,7 @@ class AuraAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       await _player.setAudioSource(AudioSource.uri(Uri.parse(s.uri)));
       debugPrint('[AudioHandler] _loadCurrent: play()...');
       await _player.play();
-      debugPrint('[AudioHandler] _loadCurrent: play() started, checking sessionId...');
-      await Future.delayed(const Duration(milliseconds: 500));
-      _checkAudioSessionId();
+      debugPrint('[AudioHandler] _loadCurrent: play() started, session will be handled by stream');
       onSongChanged?.call(s.id);
     } catch (e) {
       _errorController.add(AudioError(
