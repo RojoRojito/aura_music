@@ -413,7 +413,7 @@ class EqualizerEngine(private val context: Context) {
                 if (bandIndex >= 0 && bandIndex < numBands) {
                     val levelMb = (gainDb * 100).toInt().toShort()
                     eq.setBandLevel(bandIndex.toShort(), levelMb)
-                }
+                } else Unit
             } catch (e: Exception) {
                 Log.e(TAG, "applyBandGainLegacy ERROR", e)
             }
@@ -453,7 +453,7 @@ class EqualizerEngine(private val context: Context) {
                     if (bb.strengthSupported) {
                         val strength = ((bassBoostStrength / 15f) * 1000).toInt().coerceIn(0, 1000)
                         bb.setStrength(strength.toShort())
-                    }
+                    } else Unit
                 } catch (e: Exception) {
                     Log.e(TAG, "setBassBoost legacy ERROR", e)
                 }
@@ -463,7 +463,7 @@ class EqualizerEngine(private val context: Context) {
                     if (v.strengthSupported) {
                         val s = (virtualizerStrength * 1000).toInt().coerceIn(0, 1000)
                         v.setStrength(s.toShort())
-                    }
+                    } else Unit
                 } catch (e: Exception) {
                     Log.e(TAG, "setVirtualizer legacy ERROR", e)
                 }
@@ -473,7 +473,7 @@ class EqualizerEngine(private val context: Context) {
                     le.enabled = loudnessEnabled
                     if (loudnessEnabled) {
                         le.setTargetGain((loudnessGain * 100).toInt())
-                    }
+                    } else Unit
                 } catch (e: Exception) {
                     Log.e(TAG, "setLoudness legacy ERROR", e)
                 }
