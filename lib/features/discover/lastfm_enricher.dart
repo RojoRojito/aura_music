@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'genre_catalog.dart';
@@ -35,7 +37,7 @@ class LastFmEnricher {
       final data = jsonDecode(response.body) as Map<String, dynamic>;
 
       if (data.containsKey('error')) {
-        debugPrint('[LastFM] API error para $artistName: ${data['error']}');
+        debugPrint('[LastFM] API error ${data['error']} para: $artistName');
         return null;
       }
 
@@ -61,8 +63,14 @@ class LastFmEnricher {
         'moods': moods,
         'source': 'lastfm',
       };
-    } catch (_) {
-      debugPrint('[LastFM] ❌ Sin internet o timeout para: $artistName');
+    } catch (e) {
+      if (e is SocketException) {
+        debugPrint('[LastFM] ❌ Sin internet: $artistName');
+      } else if (e is TimeoutException) {
+        debugPrint('[LastFM] ⏱️ Timeout: $artistName');
+      } else {
+        debugPrint('[LastFM] ❌ Error inesperado para $artistName: $e');
+      }
       return null;
     }
   }
