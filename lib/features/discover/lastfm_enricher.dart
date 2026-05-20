@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'genre_catalog.dart';
 
-const String kLastFmApiKey = '503387ef0a88aacff7d531db6d20dc';
+const String kLastFmApiKey = '873e512b7b7255426e9fd73820890cd3';
 const String kLastFmBaseUrl = 'https://ws.audioscrobbler.com/2.0/';
 
 class LastFmEnricher {
